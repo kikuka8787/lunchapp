@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>알러지-제로 급식 | 스마트 급식 알림이</title>
+    <meta name="description" content="나이스 API를 사용한 학교 급식 정보 및 알러지 강조 서비스">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 배경 데코레이션 -->
+        <div class="bg-glow bg-glow-1"></div>
+        <div class="bg-glow bg-glow-2"></div>
+
+        <header>
+            <div class="logo">
+                <img src="icon.png" alt="식판 아이콘" class="logo-img">
+                <h1>알러지-제로 <span>급식</span></h1>
+            </div>
+            <button id="toggle-settings" class="icon-btn" title="알러지 설정">
+                <span class="icon">⚙️</span>
+            </button>
+        </header>
+
+        <main>
+            <!-- 학교 검색 섹션 -->
+            <section class="search-section card">
+                <div class="search-box">
+                    <input type="text" id="school-search" placeholder="학교 이름을 입력하세요 (예: 강남고등학교)">
+                    <button id="search-btn">검색</button>
+                </div>
+                <div id="search-results" class="search-results hidden"></div>
+                <div id="selected-school-info" class="selected-school hidden">
+                    <span id="current-school-name"></span>
+                    <button id="change-school-btn">변경</button>
+                </div>
+            </section>
+
+            <!-- 날짜 및 급식 정보 섹션 -->
+            <section class="meal-section">
+                <div class="date-navigator">
+                    <button id="prev-day" class="nav-btn">&lt;</button>
+                    <div class="current-date-box">
+                        <span id="display-date">2026. 05. 03</span>
+                        <span id="display-day" class="day-label">일요일</span>
+                    </div>
+                    <button id="next-day" class="nav-btn">&gt;</button>
+                </div>
+
+                <div id="meal-container" class="meal-container">
+                    <!-- 급식 카드가 동적으로 삽입됨 -->
+                    <div class="loader hidden"></div>
+                    <div class="empty-state">
+                        <p>학교를 검색하여 급식 정보를 확인하세요.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 알러지 설정 사이드바 -->
+        <aside id="settings-sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h2>알러지 설정</h2>
+                <button id="close-settings" class="close-btn">&times;</button>
+            </div>
+            <p class="sidebar-desc">체크한 항목이 식단에 포함되면 빨간색으로 강조됩니다.</p>
+            <div class="allergy-grid" id="allergy-options">
+                <!-- 알러지 체크박스들 -->
+            </div>
+            <div class="sidebar-footer">
+                <button id="save-settings" class="primary-btn">설정 완료</button>
+            </div>
+        </aside>
+
+        <div id="overlay" class="overlay hidden"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
