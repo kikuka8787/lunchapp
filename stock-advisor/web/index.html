@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오늘의 주식 신호 | 듀얼 모멘텀 참고 신호</title>
+    <meta name="description" content="듀얼 모멘텀 + 변동성 조절 규칙으로 관심 종목의 매수/보유/관망/매도 참고 신호를 보여주는 앱">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <div class="bg-glow bg-glow-1"></div>
+        <div class="bg-glow bg-glow-2"></div>
+
+        <header>
+            <div class="logo">
+                <span class="logo-emoji">📈</span>
+                <h1>오늘의 <span>주식 신호</span></h1>
+            </div>
+            <button id="toggle-settings" class="icon-btn" title="전략 설정">
+                <span class="icon">⚙️</span>
+            </button>
+        </header>
+
+        <main>
+            <!-- 관심 종목 -->
+            <section class="card watch-section">
+                <div class="section-head">
+                    <h2>관심 종목</h2>
+                    <label class="demo-toggle"><input type="checkbox" id="demo-mode"> 데모 시세</label>
+                </div>
+                <div id="watchlist" class="chips"></div>
+                <div class="add-box">
+                    <input type="text" id="new-symbol" placeholder="종목코드 (예: 005930.KS, AAPL)">
+                    <input type="text" id="new-name" placeholder="이름 (선택)">
+                    <button id="add-btn">추가</button>
+                </div>
+                <p class="hint">코스피는 <code>.KS</code>, 코스닥은 <code>.KQ</code>를 붙입니다. 미국 주식은 티커 그대로.</p>
+                <button id="analyze-btn" class="primary-btn">신호 분석하기</button>
+            </section>
+
+            <!-- 결과 -->
+            <section class="result-section">
+                <div class="section-head">
+                    <h2>신호</h2>
+                    <span id="result-date" class="muted"></span>
+                </div>
+                <div id="result-container" class="result-container">
+                    <div class="empty-state"><p>관심 종목을 정하고 "신호 분석하기"를 누르세요.</p></div>
+                </div>
+            </section>
+
+            <!-- 카톡 메시지 미리보기 -->
+            <section class="card message-section hidden" id="message-section">
+                <div class="section-head">
+                    <h2>카카오톡 메시지</h2>
+                    <button id="copy-btn" class="small-btn">복사</button>
+                </div>
+                <pre id="message-preview"></pre>
+                <button id="send-btn" class="primary-btn" disabled title="PlayMCP 연결 후 사용할 수 있습니다">카카오톡으로 보내기 (PlayMCP 연결 전)</button>
+                <p class="hint">연결 전에는 복사해서 나와의 채팅방에 붙여넣어 쓰세요. 연결은 README의 "PlayMCP 연동" 참고.</p>
+            </section>
+
+            <p class="disclaimer">※ 규칙 기반 참고용이며 투자 권유가 아닙니다. 투자 판단과 손익 책임은 본인에게 있습니다.</p>
+        </main>
+
+        <!-- 전략 설정 사이드바 -->
+        <aside id="settings-sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h2>전략 설정</h2>
+                <button id="close-settings" class="close-btn">&times;</button>
+            </div>
+            <p class="sidebar-desc">듀얼 모멘텀 + 변동성 조절 + 200일선 필터. 기본값은 원 논문/책 기준입니다.</p>
+            <div class="settings-grid" id="settings-form">
+                <label>모멘텀 기간(일) <input type="number" name="lookback" min="20" step="1"></label>
+                <label>최근 제외(일) <input type="number" name="skip" min="0" step="1"></label>
+                <label>추세 이동평균(일) <input type="number" name="trendMA" min="20" step="1"></label>
+                <label>변동성 창(일) <input type="number" name="volWindow" min="10" step="1"></label>
+                <label>목표 변동성(연) <input type="number" name="targetVol" min="0.01" max="1" step="0.01"></label>
+                <label>종목 최대 비중 <input type="number" name="maxWeight" min="0.05" max="1" step="0.05"></label>
+                <label>상대 모멘텀 상위 N <input type="number" name="topN" min="1" step="1"></label>
+            </div>
+            <details class="strategy-doc">
+                <summary>이 전략은?</summary>
+                <ul>
+                    <li><b>절대 모멘텀</b>: 12개월 수익률(최근 1개월 제외)이 양수이고 가격이 200일선 위여야 시장 참여. 아니면 관망(현금).</li>
+                    <li><b>상대 모멘텀</b>: 관심 종목 중 12개월 수익률 상위 N개만 매수 관심 후보.</li>
+                    <li><b>변동성 조절</b>: 비중 = 목표 변동성 ÷ 최근 60일 실현 변동성 (상한 적용).</li>
+                    <li><b>단기 타이밍</b>: RSI, MACD, 20일선으로 진입/이탈 시점만 보조.</li>
+                </ul>
+            </details>
+            <div class="sidebar-footer">
+                <button id="reset-settings" class="small-btn">기본값</button>
+                <button id="save-settings" class="primary-btn">설정 완료</button>
+            </div>
+        </aside>
+
+        <div id="overlay" class="overlay hidden"></div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

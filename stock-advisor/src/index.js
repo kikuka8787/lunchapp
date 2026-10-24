@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fetchCloses, demoCloses } from './data.js';
-import { analyze } from './strategy.js';
+import { analyze, rank } from './strategy.js';
 import { buildMessage } from './message.js';
 import { connect, listTools, sendToKakao } from './playmcp.js';
 
@@ -9,16 +9,17 @@ const has = (f) => args.includes(f);
 const config = JSON.parse(readFileSync(new URL('../config.json', import.meta.url), 'utf8'));
 
 async function analyzeAll() {
-  return Promise.all(
+  const results = await Promise.all(
     config.watchlist.map(async (w, i) => {
       try {
         const { closes, currency } = has('--demo') ? demoCloses(i + 7) : await fetchCloses(w.symbol, config.history);
-        return { name: w.name, currency, ...analyze(closes) };
+        return { name: w.name, symbol: w.symbol, currency, ...analyze(closes, config.strategy) };
       } catch (e) {
-        return { name: w.name, error: e.message };
+        return { name: w.name, symbol: w.symbol, error: e.message };
       }
     }),
   );
+  return rank(results, config.strategy);
 }
 
 async function main() {

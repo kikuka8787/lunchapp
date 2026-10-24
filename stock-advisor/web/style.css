@@ -1,0 +1,116 @@
+:root {
+    --bg-color: #f3f7fb;
+    --card-bg: rgba(255, 255, 255, 0.75);
+    --card-border: rgba(0, 0, 0, 0.05);
+    --primary-color: #2563eb;
+    --accent-color: #22c55e;
+    --text-main: #0f172a;
+    --text-muted: #475569;
+    --buy: #16a34a;
+    --hold: #2563eb;
+    --wait: #94a3b8;
+    --sell: #dc2626;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+.app-container { max-width: 640px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
+
+.bg-glow { position: fixed; width: 400px; height: 400px; border-radius: 50%; filter: blur(80px); z-index: -1; opacity: 0.15; pointer-events: none; }
+.bg-glow-1 { top: -100px; left: -100px; background: var(--primary-color); }
+.bg-glow-2 { bottom: -100px; right: -100px; background: var(--accent-color); }
+
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 10px 0; }
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-emoji { font-size: 36px; }
+h1 { font-size: 1.5rem; font-weight: 800; }
+h1 span { color: var(--primary-color); }
+h2 { font-size: 1.05rem; font-weight: 700; }
+
+.icon-btn { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; width: 44px; height: 44px; cursor: pointer; font-size: 20px; transition: var(--transition); }
+.icon-btn:hover { transform: rotate(30deg); }
+
+.card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05); }
+.section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.muted { color: var(--text-muted); font-size: 0.85rem; }
+.hint { color: var(--text-muted); font-size: 0.8rem; margin: 8px 0 14px; }
+.hint code { background: rgba(37, 99, 235, 0.1); padding: 1px 5px; border-radius: 4px; }
+.hidden { display: none !important; }
+
+/* 관심 종목 */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: white; border: 1px solid var(--card-border); border-radius: 999px; padding: 6px 8px 6px 12px; font-size: 0.9rem; }
+.chip small { color: var(--text-muted); }
+.chip button { border: none; background: transparent; cursor: pointer; font-size: 16px; color: var(--text-muted); line-height: 1; }
+.chip button:hover { color: var(--sell); }
+.add-box { display: flex; gap: 8px; }
+.add-box input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--card-border); border-radius: 12px; font-family: inherit; font-size: 0.9rem; background: white; }
+.add-box button, .small-btn { padding: 10px 16px; border: none; border-radius: 12px; background: white; border: 1px solid var(--card-border); cursor: pointer; font-family: inherit; font-weight: 600; transition: var(--transition); }
+.add-box button:hover, .small-btn:hover { background: var(--primary-color); color: white; }
+.demo-toggle { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+.primary-btn { width: 100%; padding: 14px; border: none; border-radius: 14px; background: var(--primary-color); color: white; font-size: 1rem; font-weight: 700; font-family: inherit; cursor: pointer; transition: var(--transition); }
+.primary-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3); }
+.primary-btn:disabled { background: var(--wait); cursor: not-allowed; }
+
+/* 신호 카드 */
+.result-section { margin-bottom: 20px; }
+.result-container { display: flex; flex-direction: column; gap: 12px; }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--card-bg); border-radius: 20px; border: 1px dashed var(--card-border); }
+.signal-card { background: white; border-radius: 18px; padding: 16px 18px; border-left: 6px solid var(--wait); box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05); animation: fadeIn 0.3s ease; }
+.signal-card.buy { border-left-color: var(--buy); }
+.signal-card.hold { border-left-color: var(--hold); }
+.signal-card.wait { border-left-color: var(--wait); }
+.signal-card.sell { border-left-color: var(--sell); }
+.signal-card.error { border-left-color: #f59e0b; }
+.signal-head { display: flex; justify-content: space-between; align-items: center; }
+.signal-head .name { font-weight: 700; font-size: 1.05rem; }
+.signal-head .symbol { color: var(--text-muted); font-size: 0.8rem; margin-left: 6px; }
+.signal-head .action { font-weight: 700; }
+.price-row { display: flex; align-items: baseline; gap: 10px; margin: 6px 0; flex-wrap: wrap; }
+.price { font-size: 1.3rem; font-weight: 800; }
+.change.up { color: var(--sell); }
+.change.down { color: var(--hold); }
+.weight { margin-left: auto; background: rgba(34, 197, 94, 0.12); color: var(--buy); padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+.metrics { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 0.8rem; color: var(--text-muted); }
+.reasons { font-size: 0.85rem; margin-top: 8px; color: var(--text-main); }
+
+/* 메시지 */
+#message-preview { white-space: pre-wrap; font-family: 'Noto Sans KR', sans-serif; font-size: 0.9rem; background: #fef9c3; border-radius: 14px; padding: 14px; margin-bottom: 12px; line-height: 1.5; }
+.disclaimer { color: var(--text-muted); font-size: 0.78rem; text-align: center; margin: 20px 0; }
+
+/* 사이드바 */
+.sidebar { position: fixed; top: 0; right: -100%; width: 100%; max-width: 360px; height: 100%; background: white; z-index: 100; padding: 24px; transition: var(--transition); box-shadow: -10px 0 40px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow-y: auto; }
+.sidebar.active { right: 0; }
+.sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.close-btn { border: none; background: none; font-size: 28px; cursor: pointer; color: var(--text-muted); }
+.sidebar-desc { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; }
+.settings-grid { display: grid; gap: 10px; }
+.settings-grid label { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; gap: 10px; }
+.settings-grid input { width: 110px; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 10px; font-family: inherit; }
+.strategy-doc { margin: 16px 0; font-size: 0.85rem; color: var(--text-muted); }
+.strategy-doc summary { cursor: pointer; font-weight: 600; color: var(--text-main); }
+.strategy-doc ul { padding-left: 18px; margin-top: 8px; display: grid; gap: 6px; }
+.sidebar-footer { margin-top: auto; display: flex; gap: 8px; }
+.sidebar-footer .primary-btn { flex: 1; }
+.overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 99; }
+
+.loader { width: 36px; height: 36px; border: 4px solid rgba(37, 99, 235, 0.2); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 30px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 480px) {
+    .add-box { flex-wrap: wrap; }
+    .add-box input { flex-basis: 100%; }
+    .add-box button { flex: 1; }
+}

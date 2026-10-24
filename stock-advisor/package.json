@@ -1,10 +1,11 @@
 {
   "name": "stock-advisor",
-  "version": "0.1.0",
-  "description": "관심 종목을 분석해 매수/매도 참고 신호를 카카오톡(PlayMCP)으로 보내주는 앱",
+  "version": "0.2.0",
+  "description": "듀얼 모멘텀 기반 매수/매도 참고 신호를 웹 앱으로 보여주고 카카오톡(PlayMCP)으로 보내주는 앱",
   "type": "module",
   "private": true,
   "scripts": {
+    "web": "node src/serve.js",
     "start": "node src/index.js",
     "dry-run": "node src/index.js --dry-run",
     "demo": "node src/index.js --demo --dry-run",
