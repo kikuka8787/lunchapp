@@ -1,0 +1,10 @@
+{
+  "watchlist": [
+    { "symbol": "005930.KS", "name": "삼성전자" },
+    { "symbol": "000660.KS", "name": "SK하이닉스" },
+    { "symbol": "035420.KS", "name": "NAVER" },
+    { "symbol": "AAPL", "name": "애플" },
+    { "symbol": "NVDA", "name": "엔비디아" }
+  ],
+  "history": { "range": "1y", "interval": "1d" }
+}
