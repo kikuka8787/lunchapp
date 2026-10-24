@@ -13,6 +13,7 @@
     "backtest": "node src/index.js backtest",
     "schedule": "node src/schedule.js",
     "next": "node src/index.js next",
+    "check": "node src/index.js check",
     "test": "node --test test/*.test.js"
   },
   "engines": { "node": ">=18" },

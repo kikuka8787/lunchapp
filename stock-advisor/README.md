@@ -17,6 +17,7 @@ npm run dry-run   # CLI: 실제 시세로 분석, 카톡은 보내지 않고 출
 npm start         # CLI: 분석 후 카카오톡 전송 (PlayMCP 연동 필요)
 npm run backtest  # CLI: 5년 백테스트 (--demo, --market kr|us, --range 2y|5y|10y, --watch-only)
 npm run next      # 다음 한국장/미국장 개장 알림 시각
+npm run check     # 유니버스·관심 종목 코드가 전부 조회되는지 점검 (실패 종목 목록 출력)
 npm run schedule  # 개장 시각마다 시장별 알림 (계속 떠 있는 프로세스)
 npm test
 ```

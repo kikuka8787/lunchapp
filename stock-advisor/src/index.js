@@ -10,6 +10,7 @@ import { connect, listTools, sendToKakao } from './playmcp.js';
 //   node src/index.js backtest [--demo] [--market kr|us] [--range 5y] [--watch-only]
 //   node src/index.js tools                                   PlayMCP 도구 목록
 //   node src/index.js next                                    다음 개장 알림 시각
+//   node src/index.js check [--market kr|us]                  종목코드 조회 점검
 const args = process.argv.slice(2);
 const has = (f) => args.includes(f);
 const opt = (f, def) => (args.includes(f) ? args[args.indexOf(f) + 1] : def);
@@ -37,6 +38,25 @@ async function main() {
     return;
   }
   if (!candidates.length) throw new Error('분석할 종목이 없습니다 (config.json watchlist / universe.json 확인)');
+
+  if (args[0] === 'check') {
+    // 유니버스/관심 종목 코드가 전부 조회되는지 점검 (Yahoo 5일치만 요청)
+    const load = (symbol) => (demo ? Promise.resolve(demoCloses(symbol, 5)) : fetchCloses(symbol, { ...config.history, range: '5d' }));
+    const targets = [...Object.values(universe.indices).map((symbol) => ({ symbol, name: '지수', market: '-' })), ...candidates];
+    const bad = [];
+    await mapLimit(targets, 6, async (c) => {
+      try {
+        const s = await load(c.symbol);
+        console.log(`✅ ${c.symbol.padEnd(10)} ${c.name} (${s.currency}, 최근 ${s.closes.at(-1)})`);
+      } catch (e) {
+        bad.push(c);
+        console.log(`❌ ${c.symbol.padEnd(10)} ${c.name} — ${e.message}`);
+      }
+    });
+    console.log(`\n${targets.length - bad.length}/${targets.length} 조회 성공${bad.length ? ` · 실패: ${bad.map((b) => `${b.name}(${b.symbol})`).join(', ')}` : ''}`);
+    if (bad.length) process.exit(2);
+    return;
+  }
 
   if (args[0] === 'backtest') {
     const range = opt('--range', '5y');
