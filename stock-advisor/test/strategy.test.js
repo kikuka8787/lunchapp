@@ -55,8 +55,9 @@ test('buildMessage: 면책 문구, 비중, 오류 종목 포함', () => {
 });
 
 test('parseChart: null 가격 제거', () => {
-  const json = { chart: { result: [{ meta: { currency: 'KRW' }, indicators: { quote: [{ close: [1, null, 2] }] } }] } };
-  assert.deepEqual(parseChart('X', json), { closes: [1, 2], currency: 'KRW' });
+  const day = 86400;
+  const json = { chart: { result: [{ meta: { currency: 'KRW' }, timestamp: [day + 100, 2 * day, 3 * day + 5], indicators: { quote: [{ close: [1, null, 2] }] } }] } };
+  assert.deepEqual(parseChart('X', json), { closes: [1, 2], dates: [day * 1000, 3 * day * 1000], currency: 'KRW' });
   assert.throws(() => parseChart('X', {}), /시세 데이터가 없습니다/);
 });
 

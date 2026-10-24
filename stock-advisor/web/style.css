@@ -51,6 +51,7 @@ h2 { font-size: 1.05rem; font-weight: 700; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; background: white; border: 1px solid var(--card-border); border-radius: 999px; padding: 6px 8px 6px 12px; font-size: 0.9rem; }
 .chip small { color: var(--text-muted); }
+.chip.dim { opacity: 0.4; }
 .chip button { border: none; background: transparent; cursor: pointer; font-size: 16px; color: var(--text-muted); line-height: 1; }
 .chip button:hover { color: var(--sell); }
 .add-box { display: flex; gap: 8px; }
@@ -62,6 +63,33 @@ h2 { font-size: 1.05rem; font-weight: 700; }
 .primary-btn { width: 100%; padding: 14px; border: none; border-radius: 14px; background: var(--primary-color); color: white; font-size: 1rem; font-weight: 700; font-family: inherit; cursor: pointer; transition: var(--transition); }
 .primary-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3); }
 .primary-btn:disabled { background: var(--wait); cursor: not-allowed; }
+
+/* 시장 탭 / 버튼 */
+.market-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.market-tabs button { flex: 1; padding: 8px; border: 1px solid var(--card-border); border-radius: 10px; background: white; cursor: pointer; font-family: inherit; font-size: 0.85rem; transition: var(--transition); }
+.market-tabs button.active { background: var(--text-main); color: white; border-color: var(--text-main); }
+.btn-row { display: flex; gap: 8px; }
+.primary-btn.secondary { background: white; color: var(--primary-color); border: 2px solid var(--primary-color); }
+#next-open { margin-top: 10px; margin-bottom: 0; }
+
+/* 백테스트 */
+#bt-range { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--card-border); font-family: inherit; background: white; }
+.chart-box { position: relative; margin: 10px 0; }
+.equity-chart { width: 100%; height: auto; display: block; }
+.equity-chart .grid { stroke: rgba(15, 23, 42, 0.08); stroke-width: 1; }
+.equity-chart .tick { font-size: 11px; fill: var(--text-muted); }
+.equity-chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.equity-chart .direct-label { font-size: 11px; font-weight: 700; }
+.equity-chart .crosshair { stroke: var(--text-muted); stroke-dasharray: 3 3; }
+.chart-tooltip { position: absolute; top: 8px; background: white; border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 10px; font-size: 0.8rem; box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12); pointer-events: none; white-space: nowrap; }
+.chart-tooltip i, .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+.legend { display: flex; gap: 14px; font-size: 0.8rem; color: var(--text-muted); justify-content: center; margin-top: 4px; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 8px; }
+.stats-table th, .stats-table td { padding: 6px 4px; text-align: right; border-bottom: 1px solid var(--card-border); }
+.stats-table th:first-child, .stats-table td:first-child { text-align: left; }
+.stats-table thead th { color: var(--text-muted); font-weight: 600; }
+.stats-table .strategy td:first-child { color: #2563eb; font-weight: 700; }
+.stats-table .bench td:first-child { color: #d97706; font-weight: 700; }
 
 /* 신호 카드 */
 .result-section { margin-bottom: 20px; }
@@ -110,6 +138,7 @@ h2 { font-size: 1.05rem; font-weight: 700; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 480px) {
+    .btn-row { flex-direction: column; }
     .add-box { flex-wrap: wrap; }
     .add-box input { flex-basis: 100%; }
     .add-box button { flex: 1; }

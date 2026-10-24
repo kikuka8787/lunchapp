@@ -10,6 +10,9 @@
     "dry-run": "node src/index.js --dry-run",
     "demo": "node src/index.js --demo --dry-run",
     "tools": "node src/index.js tools",
+    "backtest": "node src/index.js backtest",
+    "schedule": "node src/schedule.js",
+    "next": "node src/index.js next",
     "test": "node --test test/*.test.js"
   },
   "engines": { "node": ">=18" },

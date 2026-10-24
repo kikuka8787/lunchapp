@@ -15,8 +15,33 @@ npm run web       # 웹 앱: http://localhost:3000 (시세 프록시 포함)
 npm run demo      # CLI: 가짜 시세로 메시지 형태만 확인 (네트워크 불필요)
 npm run dry-run   # CLI: 실제 시세로 분석, 카톡은 보내지 않고 출력만
 npm start         # CLI: 분석 후 카카오톡 전송 (PlayMCP 연동 필요)
+npm run backtest  # CLI: 5년 백테스트 (--demo, --market kr|us, --range 2y|5y|10y)
+npm run next      # 다음 한국장/미국장 개장 알림 시각
+npm run schedule  # 개장 시각마다 시장별 알림 (계속 떠 있는 프로세스)
 npm test
 ```
+
+### 개장 알림 (한국장 09:00 KST, 미국장 09:30 ET)
+`npm run schedule`을 띄워두면 한국장 개장엔 `.KS/.KQ` 종목만, 미국장 개장엔 나머지 종목만 분석해 보냅니다.
+서머타임은 자동 반영되고 주말은 건너뜁니다. **공휴일은 반영하지 않아** 휴장일에도 메시지가 나갑니다.
+
+```bash
+npm run schedule -- --dry-run     # 전송 없이 콘솔로만
+OFFSET_MIN=10 npm run schedule    # 개장 10분 전에
+node src/index.js --market kr     # 한 번만 수동 실행
+```
+
+cron으로 돌리려면 (서머타임 땐 미국장 22:30, 아니면 23:30 KST):
+```cron
+0 9 * * 1-5    cd /path/to/stock-advisor && PLAYMCP_TOKEN=... node src/index.js --market kr
+30 22 * * 1-5  cd /path/to/stock-advisor && PLAYMCP_TOKEN=... node src/index.js --market us
+```
+
+### 백테스트
+웹 앱의 "백테스트" 버튼 또는 `npm run backtest`. 월 1회(21거래일) 리밸런싱, 현금 수익 0,
+편도 거래비용 0.1%(`strategy.costBps`), 균등 매수보유와 비교. 총수익·연복리(CAGR)·최대낙폭·변동성·샤프를 보여줍니다.
+한국·미국 종목을 섞으면 거래일이 달라 직전 종가로 채워 정렬합니다.
+제약: 슬리피지·세금·배당 미반영, 리밸런싱 사이 비중 변동(drift) 무시, 생존편향(현재 관심 종목으로만 과거를 봄) 있음.
 
 ### 웹 앱
 - 관심 종목 추가/삭제 (브라우저에 저장), "데모 시세" 체크로 네트워크 없이 체험
@@ -47,7 +72,7 @@ GitHub에서 "최신이면서 가장 효과 좋은" 전략을 찾아봤지만, �
 4. **단기 타이밍**: RSI 과매수/과매도, MACD 크로스, 20일선으로 점수화. 참여 종목이 점수 −3 이하면 `매도 검토`.
 
 파라미터는 `config.json`의 `strategy` 또는 웹 앱 ⚙️에서 바꿀 수 있습니다.
-**백테스트는 아직 없습니다.** 실제 성과는 보장되지 않으며, 다음 단계로 백테스트 기능을 붙이는 것을 권합니다.
+백테스트로 과거 성과를 확인할 수 있지만 과거 성과가 미래 수익을 보장하지는 않습니다.
 
 ## PlayMCP 연동 (아직 미연결)
 
@@ -67,12 +92,8 @@ CLI는 MCP 클라이언트로 PlayMCP 서버에 접속해 "나와의 채팅방" 
 개발 환경에서 PlayMCP/Yahoo에 접속할 수 없어 **실제 연동과 실제 시세 조회는 테스트하지 못했습니다**
 (단위 테스트, `--demo`, 웹 앱 데모 모드만 검증). 특히 직접 만든 앱용 **토큰 발급 방식**은 공식 문서로 확인하지 못했습니다.
 
-## 매일 자동 실행 (예시)
-```cron
-30 8 * * 1-5  cd /path/to/stock-advisor && PLAYMCP_TOKEN=... npm start
-```
-
 ## 구조
-- `web/` 브라우저 앱 (index.html, app.js, style.css) · `src/serve.js` 정적 서버 + 시세 프록시
-- `src/data.js` 시세 조회 · `src/indicators.js` 지표 · `src/strategy.js` 듀얼 모멘텀 전략
+- `web/` 브라우저 앱 (index.html, app.js, chart.js, style.css) · `src/serve.js` 정적 서버 + 시세 프록시
+- `src/data.js` 시세 조회 · `src/indicators.js` 지표 · `src/strategy.js` 듀얼 모멘텀 전략 · `src/backtest.js` 백테스트
+- `src/markets.js` 개장 시각 계산 · `src/schedule.js` 개장 알림 스케줄러
 - `src/message.js` 카톡 메시지 · `src/playmcp.js` MCP 클라이언트 · `src/index.js` CLI

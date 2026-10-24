@@ -6,9 +6,9 @@ export const fmtPrice = (n, cur) =>
 
 export const fmtPct = (x, digits = 1) => (x == null ? '-' : `${x >= 0 ? '+' : ''}${(x * 100).toFixed(digits)}%`);
 
-export function buildMessage(results, date = new Date()) {
+export function buildMessage(results, date = new Date(), title = '') {
   const d = date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
-  const lines = [`📈 ${d} 주식 신호 (듀얼 모멘텀)`];
+  const lines = [`📈 ${d} ${title ? `${title} ` : ''}주식 신호 (듀얼 모멘텀)`];
   const ok = results.filter((r) => !r.error);
   ok.sort((a, b) => ORDER.indexOf(a.action) - ORDER.indexOf(b.action) || (a.rank ?? 99) - (b.rank ?? 99));
   for (const r of ok) {

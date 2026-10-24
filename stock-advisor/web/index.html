@@ -39,7 +39,32 @@
                     <button id="add-btn">추가</button>
                 </div>
                 <p class="hint">코스피는 <code>.KS</code>, 코스닥은 <code>.KQ</code>를 붙입니다. 미국 주식은 티커 그대로.</p>
-                <button id="analyze-btn" class="primary-btn">신호 분석하기</button>
+                <div class="market-tabs" id="market-tabs">
+                    <button data-market="all" class="active">전체</button>
+                    <button data-market="kr">🇰🇷 한국장</button>
+                    <button data-market="us">🇺🇸 미국장</button>
+                </div>
+                <div class="btn-row">
+                    <button id="analyze-btn" class="primary-btn">신호 분석하기</button>
+                    <button id="backtest-btn" class="primary-btn secondary">백테스트</button>
+                </div>
+                <p class="hint" id="next-open"></p>
+            </section>
+
+            <!-- 백테스트 -->
+            <section class="card backtest-section hidden" id="backtest-section">
+                <div class="section-head">
+                    <h2>백테스트</h2>
+                    <select id="bt-range">
+                        <option value="2y">2년</option>
+                        <option value="5y" selected>5년</option>
+                        <option value="10y">10년</option>
+                    </select>
+                </div>
+                <p class="muted" id="bt-meta"></p>
+                <div id="bt-chart" class="chart-box"></div>
+                <table class="stats-table" id="bt-stats"></table>
+                <p class="hint">월 1회(21거래일) 리밸런싱, 현금 수익 0, 편도 거래비용 0.1%. 과거 성과는 미래 수익을 보장하지 않습니다.</p>
             </section>
 
             <!-- 결과 -->
