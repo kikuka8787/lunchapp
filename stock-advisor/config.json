@@ -6,14 +6,18 @@
     { "symbol": "AAPL", "name": "애플" },
     { "symbol": "NVDA", "name": "엔비디아" }
   ],
+  "includeUniverse": true,
   "history": { "range": "2y", "interval": "1d" },
   "strategy": {
-    "lookback": 252,
+    "lookbacks": [63, 126, 252],
     "skip": 21,
     "trendMA": 200,
     "volWindow": 60,
     "targetVol": 0.15,
     "maxWeight": 0.4,
-    "topN": 3
+    "topN": 3,
+    "maxPerSector": 2,
+    "regimeWeight": 0.5,
+    "costBps": 10
   }
 }

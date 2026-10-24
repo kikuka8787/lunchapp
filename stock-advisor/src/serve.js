@@ -21,8 +21,7 @@ createServer(async (req, res) => {
       return;
     }
     let file = url.pathname === '/' ? '/web/index.html' : url.pathname;
-    if (file === '/config.json') file = '/config.json';
-    else if (!file.startsWith('/web/') && !file.startsWith('/src/')) file = `/web${file}`;
+    if (!['/config.json', '/universe.json'].includes(file) && !file.startsWith('/web/') && !file.startsWith('/src/')) file = `/web${file}`;
     const path = join(ROOT, normalize(file));
     if (!path.startsWith(ROOT)) throw Object.assign(new Error('forbidden'), { code: 403 });
     const body = await readFile(path);

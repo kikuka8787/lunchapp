@@ -1,7 +1,8 @@
-import { analyze, rank, DEFAULTS } from './strategy.js';
+import { analyze, rank, marketRegime, DEFAULTS } from './strategy.js';
 
-// 듀얼 모멘텀 전략 백테스트 (월 1회 리밸런싱, 현금 수익 0, 왕복 거래비용 반영)
-// series: [{ name, symbol, dates: [ms], closes: [number] }]
+// 전략 백테스트 (월 1회 리밸런싱, 현금 수익 0, 왕복 거래비용 반영, 추천 종목만 보유)
+// series: [{ name, symbol, sector, market, dates: [ms], closes: [number] }]
+// indexSeries: { kr: { dates, closes }, us: ... } 시장 국면 필터용 (선택)
 export const BT_DEFAULTS = { costBps: 10, rebalanceDays: 21, warmup: 260 };
 
 // 시장마다 거래일이 달라서 날짜 합집합 위에 직전 종가로 채운다.
@@ -37,9 +38,12 @@ export function stats(equity, dates) {
   return { total, cagr, mdd, vol: sd * Math.sqrt(252), sharpe: sd ? (mean / sd) * Math.sqrt(252) : 0, years };
 }
 
-export function backtest(series, opts = {}) {
+export function backtest(series, opts = {}, indexSeries = {}) {
   const o = { ...DEFAULTS, ...BT_DEFAULTS, ...opts };
-  const { dates, closes } = align(series);
+  const idxKeys = Object.keys(indexSeries);
+  const { dates, closes: aligned } = align([...series, ...idxKeys.map((k) => indexSeries[k])]);
+  const closes = aligned.slice(0, series.length);
+  const idxCloses = Object.fromEntries(idxKeys.map((k, i) => [k, aligned[series.length + i]]));
   const n = dates.length;
   if (n <= o.warmup + 1) throw new Error(`데이터가 부족합니다 (${n}일, 최소 ${o.warmup + 2}일 필요)`);
 
@@ -67,13 +71,18 @@ export function backtest(series, opts = {}) {
       // 수익률 반영 후 실제 비중이 흔들리는 것(drift)은 무시하고 목표 비중을 유지한다고 가정
     }
     if ((t - o.warmup) % o.rebalanceDays === 0) {
-      const results = series.map((s, i) => ({ name: s.name, ...analyze(closes[i].slice(0, t + 1), o) }));
-      rank(results, o);
+      const regimes = Object.fromEntries(idxKeys.map((k) => [k, marketRegime(idxCloses[k].slice(0, t + 1), o)]));
+      const results = series.map((s, i) => ({ name: s.name, sector: s.sector, market: s.market, ...analyze(closes[i].slice(0, t + 1), o) }));
+      rank(results, o, regimes);
       const next = results.map((x) => x.weight ?? 0);
       const turnover = next.reduce((s, w, i) => s + Math.abs(w - weights[i]), 0);
       equity *= 1 - turnover * cost;
       weights = next;
-      rebalances.push({ date: dates[t], weights: next.map((w, i) => ({ name: series[i].name, weight: w, action: results[i].action })) });
+      rebalances.push({
+        date: dates[t],
+        regimes,
+        picks: results.filter((x) => x.pick).sort((a, b) => a.rank - b.rank).map((x) => ({ name: x.name, weight: x.weight, action: x.action })),
+      });
     }
     exposureSum += weights.reduce((a, b) => a + b, 0);
     curve.push(equity);

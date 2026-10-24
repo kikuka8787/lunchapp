@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>오늘의 주식 신호 | 듀얼 모멘텀 참고 신호</title>
-    <meta name="description" content="듀얼 모멘텀 + 변동성 조절 규칙으로 관심 종목의 매수/보유/관망/매도 참고 신호를 보여주는 앱">
+    <title>오늘의 주식 신호 | 듀얼 모멘텀 추천</title>
+    <meta name="description" content="대형주 유니버스를 듀얼 모멘텀 + 시장 국면 + 변동성 조절 규칙으로 스크리닝해 추천 종목과 근거를 보여주는 앱">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,10 +26,10 @@
         </header>
 
         <main>
-            <!-- 관심 종목 -->
+            <!-- 설정 -->
             <section class="card watch-section">
                 <div class="section-head">
-                    <h2>관심 종목</h2>
+                    <h2>내 관심 종목</h2>
                     <label class="demo-toggle"><input type="checkbox" id="demo-mode"> 데모 시세</label>
                 </div>
                 <div id="watchlist" class="chips"></div>
@@ -44,11 +44,40 @@
                     <button data-market="kr">🇰🇷 한국장</button>
                     <button data-market="us">🇺🇸 미국장</button>
                 </div>
+                <label class="scope-row">추천 후보
+                    <select id="scope">
+                        <option value="universe">대형주 유니버스 + 관심 종목</option>
+                        <option value="watch">관심 종목만</option>
+                    </select>
+                </label>
                 <div class="btn-row">
-                    <button id="analyze-btn" class="primary-btn">신호 분석하기</button>
+                    <button id="analyze-btn" class="primary-btn">추천 종목 분석</button>
                     <button id="backtest-btn" class="primary-btn secondary">백테스트</button>
                 </div>
+                <p class="hint" id="progress"></p>
                 <p class="hint" id="next-open"></p>
+            </section>
+
+            <!-- 시장 국면 -->
+            <div id="regime-bar" class="regime-bar hidden"></div>
+
+            <!-- 추천 -->
+            <section class="result-section hidden" id="picks-section">
+                <div class="section-head">
+                    <h2>🏆 오늘의 추천</h2>
+                    <span id="result-date" class="muted"></span>
+                </div>
+                <div id="picks-container" class="result-container"></div>
+            </section>
+
+            <!-- 관심 종목 -->
+            <section class="result-section" id="watch-section">
+                <div class="section-head">
+                    <h2>📋 내 관심 종목 신호</h2>
+                </div>
+                <div id="result-container" class="result-container">
+                    <div class="empty-state"><p>시장을 고르고 "추천 종목 분석"을 누르세요.</p></div>
+                </div>
             </section>
 
             <!-- 백테스트 -->
@@ -64,18 +93,8 @@
                 <p class="muted" id="bt-meta"></p>
                 <div id="bt-chart" class="chart-box"></div>
                 <table class="stats-table" id="bt-stats"></table>
-                <p class="hint">월 1회(21거래일) 리밸런싱, 현금 수익 0, 편도 거래비용 0.1%. 과거 성과는 미래 수익을 보장하지 않습니다.</p>
-            </section>
-
-            <!-- 결과 -->
-            <section class="result-section">
-                <div class="section-head">
-                    <h2>신호</h2>
-                    <span id="result-date" class="muted"></span>
-                </div>
-                <div id="result-container" class="result-container">
-                    <div class="empty-state"><p>관심 종목을 정하고 "신호 분석하기"를 누르세요.</p></div>
-                </div>
+                <p class="muted" id="bt-last"></p>
+                <p class="hint">월 1회(21거래일) 리밸런싱, 추천 종목만 보유, 현금 수익 0, 편도 거래비용 0.1%. 균등 보유는 후보 전체를 같은 비중으로 계속 든 경우입니다. 과거 성과는 미래 수익을 보장하지 않습니다.</p>
             </section>
 
             <!-- 카톡 메시지 미리보기 -->
@@ -98,24 +117,27 @@
                 <h2>전략 설정</h2>
                 <button id="close-settings" class="close-btn">&times;</button>
             </div>
-            <p class="sidebar-desc">듀얼 모멘텀 + 변동성 조절 + 200일선 필터. 기본값은 원 논문/책 기준입니다.</p>
+            <p class="sidebar-desc">듀얼 모멘텀 + 시장 국면 필터 + 위험조정 모멘텀 순위 + 변동성 비중. 기본값은 원 논문/책 기준입니다.</p>
             <div class="settings-grid" id="settings-form">
-                <label>모멘텀 기간(일) <input type="number" name="lookback" min="20" step="1"></label>
-                <label>최근 제외(일) <input type="number" name="skip" min="0" step="1"></label>
-                <label>추세 이동평균(일) <input type="number" name="trendMA" min="20" step="1"></label>
-                <label>변동성 창(일) <input type="number" name="volWindow" min="10" step="1"></label>
+                <label>추천 종목 수 <input type="number" name="topN" min="1" step="1"></label>
+                <label>섹터당 최대 <input type="number" name="maxPerSector" min="1" step="1"></label>
+                <label>약세장 비중 배수 <input type="number" name="regimeWeight" min="0" max="1" step="0.1"></label>
                 <label>목표 변동성(연) <input type="number" name="targetVol" min="0.01" max="1" step="0.01"></label>
                 <label>종목 최대 비중 <input type="number" name="maxWeight" min="0.05" max="1" step="0.05"></label>
-                <label>상대 모멘텀 상위 N <input type="number" name="topN" min="1" step="1"></label>
+                <label>추세 이동평균(일) <input type="number" name="trendMA" min="20" step="1"></label>
+                <label>최근 제외(일) <input type="number" name="skip" min="0" step="1"></label>
+                <label>변동성 창(일) <input type="number" name="volWindow" min="10" step="1"></label>
             </div>
-            <details class="strategy-doc">
+            <details class="strategy-doc" open>
                 <summary>이 전략은?</summary>
-                <ul>
-                    <li><b>절대 모멘텀</b>: 12개월 수익률(최근 1개월 제외)이 양수이고 가격이 200일선 위여야 시장 참여. 아니면 관망(현금).</li>
-                    <li><b>상대 모멘텀</b>: 관심 종목 중 12개월 수익률 상위 N개만 매수 관심 후보.</li>
-                    <li><b>변동성 조절</b>: 비중 = 목표 변동성 ÷ 최근 60일 실현 변동성 (상한 적용).</li>
-                    <li><b>단기 타이밍</b>: RSI, MACD, 20일선으로 진입/이탈 시점만 보조.</li>
-                </ul>
+                <ol>
+                    <li><b>시장 국면</b>: KOSPI/S&P500이 12개월 수익률 &gt; 0 이고 200일선 위면 상승 추세. 아니면 약세로 보고 비중을 배수만큼 줄입니다.</li>
+                    <li><b>절대 모멘텀</b>: 종목 12개월 수익률(최근 1개월 제외) &gt; 0 이고 가격 &gt; 200일선이어야 후보. 아니면 관망(현금).</li>
+                    <li><b>상대 모멘텀</b>: 3·6·12개월 평균 수익률 ÷ 변동성(위험조정)으로 순위, 상위 N개 추천. 섹터 쏠림 제한.</li>
+                    <li><b>비중</b>: 목표 변동성 ÷ 최근 60일 실현 변동성, 상한 적용, 합계 100% 이내.</li>
+                    <li><b>단기 타이밍</b>: RSI 70 이상 과열이면 "매수 대기"(분할 매수), MACD·20일선 급락이면 "매도 검토".</li>
+                    <li><b>손절</b>: 최근 60일 고점 대비 월간 변동성의 2배(8~20%) 또는 200일선 중 높은 쪽.</li>
+                </ol>
             </details>
             <div class="sidebar-footer">
                 <button id="reset-settings" class="small-btn">기본값</button>

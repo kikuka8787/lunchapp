@@ -91,6 +91,20 @@ h2 { font-size: 1.05rem; font-weight: 700; }
 .stats-table .strategy td:first-child { color: #2563eb; font-weight: 700; }
 .stats-table .bench td:first-child { color: #d97706; font-weight: 700; }
 
+/* 범위 선택 / 시장 국면 */
+.scope-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; gap: 10px; }
+.scope-row select { flex: 1; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--card-border); font-family: inherit; background: white; color: var(--text-main); }
+#progress { margin: 8px 0 0; min-height: 1em; }
+.regime-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.regime { flex: 1; min-width: 200px; background: white; border-radius: 14px; padding: 10px 14px; border-left: 5px solid var(--wait); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 0.85rem; }
+.regime.ok { border-left-color: var(--buy); }
+.regime.bad { border-left-color: var(--sell); }
+.regime-name { font-weight: 700; }
+.regime-label { font-weight: 700; }
+.regime.ok .regime-label { color: var(--buy); }
+.regime.bad .regime-label { color: var(--sell); }
+.regime-detail { color: var(--text-muted); }
+
 /* 신호 카드 */
 .result-section { margin-bottom: 20px; }
 .result-container { display: flex; flex-direction: column; gap: 12px; }
@@ -100,7 +114,22 @@ h2 { font-size: 1.05rem; font-weight: 700; }
 .signal-card.hold { border-left-color: var(--hold); }
 .signal-card.wait { border-left-color: var(--wait); }
 .signal-card.sell { border-left-color: var(--sell); }
+.signal-card.wait-buy { border-left-color: #eab308; }
 .signal-card.error { border-left-color: #f59e0b; }
+.signal-card.pick { box-shadow: 0 10px 30px rgba(37, 99, 235, 0.12); }
+.pick-no { display: inline-flex; width: 24px; height: 24px; border-radius: 50%; background: var(--text-main); color: white; font-size: 0.8rem; font-weight: 800; align-items: center; justify-content: center; margin-right: 8px; vertical-align: middle; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chk { font-size: 0.75rem; padding: 3px 8px; border-radius: 999px; background: #f1f5f9; color: var(--text-main); white-space: nowrap; }
+.chk small { color: var(--text-muted); }
+.chk.ok { background: rgba(22, 163, 74, 0.1); }
+.chk.bad { background: rgba(220, 38, 38, 0.1); }
+.chk.warn { background: rgba(234, 179, 8, 0.15); }
+.summary { font-size: 0.85rem; line-height: 1.55; margin-top: 6px; }
+.stop { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; }
+.stop b { color: var(--text-main); }
+.more { margin-top: 6px; font-size: 0.8rem; }
+.more summary { cursor: pointer; color: var(--primary-color); font-weight: 600; }
+#bt-last { font-size: 0.8rem; margin-top: 8px; }
 .signal-head { display: flex; justify-content: space-between; align-items: center; }
 .signal-head .name { font-weight: 700; font-size: 1.05rem; }
 .signal-head .symbol { color: var(--text-muted); font-size: 0.8rem; margin-left: 6px; }

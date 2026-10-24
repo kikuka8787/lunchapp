@@ -4,6 +4,8 @@ import { align, backtest, stats } from '../src/backtest.js';
 import { demoCloses, marketOf } from '../src/data.js';
 import { nextOpen, zonedTime, MARKETS } from '../src/markets.js';
 
+const demoSeries = (n, days = 700) => Array.from({ length: n }, (_, i) => ({ name: `S${i}`, symbol: `S${i}`, sector: `섹터${i % 2}`, market: 'kr', ...demoCloses(i + 7, days) }));
+
 test('align: 날짜 합집합 위에 직전 종가로 채우고 공통 시작점부터', () => {
   const a = { dates: [1, 2, 3], closes: [10, 11, 12] };
   const b = { dates: [2, 4], closes: [20, 21] };
@@ -20,19 +22,24 @@ test('stats: 2배가 되면 총수익 100%, 낙폭 계산', () => {
   assert.ok(Math.abs(s.mdd - (1.2 / 1.5 - 1)) < 1e-9);
 });
 
-test('backtest: 데모 시세로 끝까지 돌고 지표가 유한', () => {
-  const series = [0, 1, 2].map((i) => ({ name: `S${i}`, ...demoCloses(i + 7, 700) }));
-  const bt = backtest(series);
+test('backtest: 데모 시세로 끝까지 돌고 지표가 유한, 리밸런싱마다 추천 기록', () => {
+  const bt = backtest(demoSeries(4), { topN: 2 });
   assert.equal(bt.equity.length, bt.dates.length);
   assert.equal(bt.equity.length, bt.benchmark.length);
   for (const k of ['total', 'cagr', 'mdd', 'vol', 'sharpe']) assert.ok(Number.isFinite(bt.strategy[k]), k);
   assert.ok(bt.rebalances.length > 10);
+  assert.ok(bt.rebalances.every((r) => r.picks.length <= 2));
   assert.ok(bt.avgExposure >= 0 && bt.avgExposure <= 1);
   assert.throws(() => backtest([{ name: 'x', ...demoCloses(1, 100) }]), /데이터가 부족/);
 });
 
+test('backtest: 지수 시리즈를 주면 국면 필터가 기록된다', () => {
+  const bt = backtest(demoSeries(3), { topN: 2 }, { kr: demoCloses('^KS11', 700) });
+  assert.ok(bt.rebalances.every((r) => typeof r.regimes.kr.ok === 'boolean'));
+});
+
 test('backtest: 거래비용이 클수록 수익이 낮아진다', () => {
-  const series = [0, 1].map((i) => ({ name: `S${i}`, ...demoCloses(i + 3, 700) }));
+  const series = demoSeries(2);
   assert.ok(backtest(series, { costBps: 0 }).strategy.total > backtest(series, { costBps: 200 }).strategy.total);
 });
 
@@ -49,12 +56,9 @@ test('zonedTime: KST 09:00 = UTC 00:00, 뉴욕 서머타임/표준시', () => {
 });
 
 test('nextOpen: 주말은 건너뛰고 이미 지난 시각이면 다음 날', () => {
-  // 2026-10-24 토요일 12:00 KST
-  const sat = Date.UTC(2026, 9, 24, 3, 0);
-  assert.equal(nextOpen('kr', { now: sat }), Date.UTC(2026, 9, 26, 0, 0)); // 월요일 09:00 KST
-  // 월요일 09:30 KST 는 이미 개장 후 → 화요일
+  const sat = Date.UTC(2026, 9, 24, 3, 0); // 2026-10-24 토요일 12:00 KST
+  assert.equal(nextOpen('kr', { now: sat }), Date.UTC(2026, 9, 26, 0, 0));
   assert.equal(nextOpen('kr', { now: Date.UTC(2026, 9, 26, 0, 30) }), Date.UTC(2026, 9, 27, 0, 0));
-  // 10분 전 알림
   assert.equal(nextOpen('kr', { now: sat, offsetMin: 10 }), Date.UTC(2026, 9, 25, 23, 50));
   assert.ok(Object.keys(MARKETS).includes('us'));
 });
