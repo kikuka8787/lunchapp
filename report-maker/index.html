@@ -161,13 +161,32 @@
   .paper td.bul p { padding-left: 12px; text-indent: -12px; }
   .paper .pb { border-top: 2px dashed #c9cfdd; margin: 30px -48px 26px; position: relative; }
   .paper .pb::after { content: "쪽 나눔"; position: absolute; right: 8px; top: -11px; background: #fff; color: #9aa3b5; font-size: 11px; padding: 0 6px; font-family: sans-serif; }
-  .ind-sec { border-radius: 6px; cursor: pointer; transition: box-shadow .15s; }
-  .ind-sec:hover { box-shadow: 0 0 0 2px #c9d3f7; }
-  .ind-sec.sel { box-shadow: 0 0 0 3px #ffb020; }
+  .ind-sec { border-radius: 6px; cursor: pointer; }
+  .paper .blk { position: relative; border-radius: 4px; outline: 2px dashed transparent; outline-offset: 3px; cursor: pointer; transition: outline-color .15s, background .15s; }
+  .paper .blk:hover { outline-color: #8fa2ee; background: rgba(43,68,201,.03); }
+  .paper .blk.on { outline: 3px solid #ff9f1a; background: rgba(255,176,32,.08); }
+  .paper td.blk { outline: 0; }
+  .paper td.blk:hover { box-shadow: inset 0 0 0 2px #8fa2ee; }
+  .paper td.blk.on { outline: 0; box-shadow: inset 0 0 0 3px #ff9f1a; background: rgba(255,176,32,.08); }
+  .paper .blk.on::before { content: "✔ 선택"; position: absolute; right: 0; top: -12px; background: #ff9f1a; color: #fff; font: 700 11px/1.6 sans-serif; padding: 0 8px; border-radius: 999px; z-index: 2; }
+  .paper .blk.busy { opacity: .45; }
+  .paper .blk.busy::after { content: "✍️ 고치는 중…"; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); background: #2b44c9; color: #fff; font: 700 12px/1.8 sans-serif; padding: 2px 12px; border-radius: 999px; z-index: 3; }
+  .preview-wrap { padding-bottom: 230px; }
+  .rev { position: fixed; right: 24px; bottom: 16px; width: min(620px, calc(54vw - 48px)); background: #fff; border: 2px solid #ff9f1a; border-radius: 14px; box-shadow: 0 10px 30px rgba(20,30,60,.22); padding: 12px 14px; z-index: 40; }
+  .rev.empty { border-color: #d5ddfa; box-shadow: 0 4px 14px rgba(20,30,60,.12); }
+  .rev.empty .rev-body, .rev.empty .rev-tools { display: none; }
+  .rev-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+  .rev-head .hint { flex: 1; }
+  .rev-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .rev-chips .chip { display: inline-flex; align-items: center; gap: 4px; background: #fff3dc; color: #8a4b00; border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 13px; font-weight: 700; }
+  .rev-chips .chip button { min-height: 22px; width: 22px; padding: 0; background: transparent; color: #8a4b00; font-size: 15px; }
+  .rev-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .rev-quick button { min-height: 30px; padding: 0 10px; font-size: 12.5px; font-weight: 600; background: #f1f3f8; color: var(--text); }
+  .rev-tools { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 
   /* 토스트 / 모달 */
   #toast {
-    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    position: fixed; left: 50%; top: 96px; transform: translateX(-50%) translateY(-10px);
     background: #111827; color: #fff; padding: 10px 18px; border-radius: 999px; z-index: 50;
     opacity: 0; pointer-events: none; transition: .25s; font-size: 14px; max-width: 90vw; text-align: center;
   }
@@ -190,6 +209,11 @@
     .paper table { font-size: 11px; }
     .mobile-switch { display: inline-flex; }
     body.show-preview .editor { display: none; }
+    body:not(.show-preview) .rev { display: none; }
+    .rev { left: 8px; right: 8px; width: auto; bottom: 8px; padding: 10px; }
+    .rev-chips, .rev-quick { flex-wrap: nowrap; overflow-x: auto; }
+    .rev-chips .chip, .rev-quick button { flex-shrink: 0; }
+    .rev-head .hint { font-size: 12px; }
     body:not(.show-preview) .preview-wrap { display: none; }
     .grid2, .checks { grid-template-columns: 1fr; }
     .top h1 { font-size: 17px; }
@@ -231,6 +255,23 @@
       <section id="form"></section>
     </aside>
     <main class="preview-wrap"><div id="preview" class="paper"></div></main>
+  </div>
+  <div id="rev" class="rev empty">
+    <div class="rev-head"><b>✏️ 블록 골라 고치기</b><span class="hint" id="rev-hint">미리보기에서 고칠 부분(블록)을 눌러 선택하세요. 여러 개 고를 수 있어요.</span>
+      <button class="ghost small" data-act="rev-clear" id="rev-clear" style="display:none">선택 해제</button></div>
+    <div class="rev-body">
+      <div class="rev-chips" id="rev-chips"></div>
+      <div class="rev-quick">
+        <button data-act="rev-quick" data-q="더 구체적으로">더 구체적으로</button>
+        <button data-act="rev-quick" data-q="더 짧고 간결하게">더 짧게</button>
+        <button data-act="rev-quick" data-q="○○ 빈칸을 줄이고 자연스러운 문장으로">○○ 줄이기</button>
+        <button data-act="rev-quick" data-q="메모 내용을 더 많이 반영해서">메모 반영</button>
+        <button data-act="rev-quick" data-q="우수사례가 돋보이게">우수사례 강조</button>
+        <button data-act="rev-quick" data-q="항목을 하나 더 추가해서">항목 추가</button>
+      </div>
+      <div class="row"><input id="rev-input" placeholder="어떻게 고칠까요? 예) 운영 내용에 학생 자치회 캠페인을 넣어 줘"><button data-act="rev-go" id="rev-go">✨ 선택 블록 고쳐 쓰기</button></div>
+    </div>
+    <div class="rev-tools"><button class="ghost small" data-act="rev-undo" id="rev-undo" style="display:none">↩ 방금 고친 것 되돌리기</button></div>
   </div>
   <input type="file" id="file-restore" accept=".json,application/json" hidden>
 
@@ -569,6 +610,24 @@ function fieldsOf(def) {
   return f;
 }
 
+// 미리보기에서 고를 수 있는 블록(지표 한 쪽에 3~5개)
+function blocksOf(def) {
+  const b = [];
+  if (def.quant) b.push({ key: "quant", label: "정량 결과분석", fields: ["qres", "qnext"] });
+  if (def.qual) {
+    if (def.qual.diag) b.push({ key: "diag", label: "현안 진단", fields: ["diag"] });
+    b.push({ key: "plan", label: "계획 수립", fields: ["plan"] });
+    b.push({ key: "op", label: "운영 내용", fields: ["op"] });
+    b.push({ key: "res", label: def.qual.thirdLabel || "성과 분석 및 환류", fields: ["res", "cases", "next"] });
+  }
+  if (def.groups) {
+    def.groups.forEach(g => b.push({ key: g.key, label: `${g.name} 의견 수렴`, fields: [g.key + "_m", g.key + "_a", g.key + "_n"] }));
+    b.push({ key: "total", label: "다음 학년도 반영사항(종합)", fields: ["next"] });
+  }
+  b.push({ key: "future", label: "향후 추진 계획", fields: ["future"] });
+  return b;
+}
+
 // ============================================================
 //  2. 상태
 // ============================================================
@@ -686,7 +745,7 @@ function indStatus(def) {
 //     블록: {t:'p'} 문단 / {t:'tbl'} 표 / {t:'pb'} 쪽 나눔
 // ============================================================
 const cleanLine = (x) => String(x).replace(/^\s*(?:[∙•·\-*]|\d+[.)])\s*/, "").trim().replace(/\s*[.。]+$/, "");
-const lines = (s) => String(s || "").split("\n").map(cleanLine).filter(Boolean);
+const lines = (s) => String(s || "").split("\n").flatMap(x => x.split(/(?<=[가-힣])\.\s+(?=\S)/)).map(cleanLine).filter(Boolean);
 const P = (text, cs = "body", ps = "body", extra = {}) => ({ t: "p", ps, runs: [{ text, cs }], ...extra });
 const cell = (c, o = {}) => ({ c, ...o });
 const L = (c, o = {}) => cell(c, { bf: "label", align: "center", cs: "cellB", ...o });
@@ -776,7 +835,7 @@ function buildDoc() {
     defs.forEach((d, i) => {
       const row = [];
       if (i === 0) row.push(L(`${a.no}. ${a.name}\n(${a.pts}점)`, { rs: defs.length, bf: "sub" }));
-      row.push(cell(`${d.id}\n(${d.pts}점)`, { align: "center" }), cell(d.title), bulletCell(S(d.id).out.future, { ind: d.id }));
+      row.push(cell(`${d.id}\n(${d.pts}점)`, { align: "center" }), cell(d.title), bulletCell(S(d.id).out.future, { blk: `${d.id}:future` }));
       fRows.push(row);
     });
   }
@@ -805,7 +864,7 @@ function scaleTable(item) {
 
 function buildIndicator(B, d, opt) {
   const st = S(d.id), out = st.out, sc = indScore(d);
-  const push = (b) => { b.ind = d.id; B.push(b); };
+  const push = (b, blk) => { b.ind = d.id; if (blk) b.blk = blk; B.push(b); };
   const ab = ["가", "나", "다", "라"]; let k = 0;
 
   push({ t: "tbl", ps: "tblPara", widths: [13, 9, 53, 12, 13], rows: [
@@ -862,7 +921,7 @@ function buildIndicator(B, d, opt) {
       })],
       [L("결과분석\n(우수사례,\n개선사항)"), bulletCell(out.qres, { span: n })],
       [L("다음 학년도\n반영사항"), bulletCell(out.qnext, { span: n })],
-    ] });
+    ] }, "quant");
   }
   if (d.qual) {
     push(P(`${ab[k++]}. 정성평가 : ${d.qual.title}`, "h3", "h3"));
@@ -871,20 +930,20 @@ function buildIndicator(B, d, opt) {
       [L("평가요소"), ...els.map(e => H(e.name))],
       [L("평가결과"), ...els.map((e, i) => { const r = evalElem({ ...e, gk: String(i) }, st); return cell(r.done ? `${r.grade} (${fmt(r.score)}점)` : `( / ${fmt(e.max)}점)`, { align: "center", bf: "score" }); })],
     ] });
-    const bulletsP = (label, text) => {
-      push(P(`○ ${label}`, "h3", "h3"));
+    const bulletsP = (label, text, blk) => {
+      push(P(`○ ${label}`, "h3", "h3"), blk);
       const ls = lines(text);
-      (ls.length ? ls : [""]).forEach(x => push(P("∙ " + x, "body", "bullet")));
+      (ls.length ? ls : [""]).forEach(x => push(P("∙ " + x, "body", "bullet"), blk));
     };
-    if (d.qual.diag) bulletsP("현안 진단", out.diag);
-    bulletsP("계획 수립", out.plan);
-    bulletsP("운영 내용", out.op);
-    push(P(`○ ${d.qual.thirdLabel || "성과 분석 및 환류"}`, "h3", "h3"));
+    if (d.qual.diag) bulletsP("현안 진단", out.diag, "diag");
+    bulletsP("계획 수립", out.plan, "plan");
+    bulletsP("운영 내용", out.op, "op");
+    push(P(`○ ${d.qual.thirdLabel || "성과 분석 및 환류"}`, "h3", "h3"), "res");
     push({ t: "tbl", ps: "tblPara", widths: [20, 80], rows: [
       [L("운영결과"), bulletCell(out.res)],
       [L("우수사례 및\n개선 사항"), bulletCell(out.cases)],
       [L("다음 학년도\n반영 사항"), bulletCell(out.next)],
-    ] });
+    ] }, "res");
   }
   if (d.budget) {
     const q = st.q;
@@ -903,7 +962,7 @@ function buildIndicator(B, d, opt) {
   }
   if (d.groups) {
     d.groups.forEach((g, gi) => {
-      push(P(`${ab[gi]}. ${g.name} 의견 수렴 및 환류 노력`, "h3", "h3"));
+      push(P(`${ab[gi]}. ${g.name} 의견 수렴 및 환류 노력`, "h3", "h3"), g.key);
       let sum = 0, all = true;
       const scoreRows = d.groupElements.map((e, i) => {
         const r = evalElem({ ...e, gk: `${g.key}${i}` }, st);
@@ -912,14 +971,14 @@ function buildIndicator(B, d, opt) {
       });
       push({ t: "tbl", ps: "tblPara", widths: [52, 28, 20], rows: [
         [H("평가요소"), H("평가결과"), H("점수")], ...scoreRows,
-        [L("총계", { span: 2 }), cell(all || sum ? `${fmt(sum)} / 5` : "", { align: "center", bf: "score", cs: "cellB" })]] });
+        [L("총계", { span: 2 }), cell(all || sum ? `${fmt(sum)} / 5` : "", { align: "center", bf: "score", cs: "cellB" })]] }, g.key);
       push({ t: "tbl", ps: "tblPara", widths: [20, 80], rows: [
         [L("의견 수렴\n방법과 내용"), bulletCell(out[g.key + "_m"])],
         [L("분석 및 성찰\n(강점·개선점)"), bulletCell(out[g.key + "_a"])],
         [L("차년도 계획\n반영"), bulletCell(out[g.key + "_n"])],
-      ] });
+      ] }, g.key);
     });
-    push({ t: "tbl", ps: "tblPara", widths: [20, 80], rows: [[L("다음 학년도\n반영사항"), bulletCell(out.next)]] });
+    push({ t: "tbl", ps: "tblPara", widths: [20, 80], rows: [[L("다음 학년도\n반영사항"), bulletCell(out.next)]] }, "total");
   }
 }
 
@@ -941,8 +1000,8 @@ function tableHtml(b) {
         const text = c.bullet ? `∙ ${x}` : x;
         return `<p>${esc(text) || "&nbsp;"}</p>`;
       }).join("");
-      const cls = [`bf-${c.bf || "grid"}`, c.align === "center" ? "al-center" : "", c.bullet ? "bul" : "", c.cs ? `cs-${c.cs}` : ""].join(" ");
-      h += `<td class="${cls}"${spanAttr(c)}>${body}</td>`;
+      const cls = [`bf-${c.bf || "grid"}`, c.align === "center" ? "al-center" : "", c.bullet ? "bul" : "", c.cs ? `cs-${c.cs}` : "", c.blk ? `blk${blkCls(c.blk)}` : ""].join(" ");
+      h += `<td class="${cls}"${spanAttr(c)}${c.blk ? ` data-blk="${c.blk}" title="눌러서 이 블록 선택"` : ""}>${body}</td>`;
     }
     h += "</tr>";
   }
@@ -955,17 +1014,25 @@ function spanAttr(c) {
   return a;
 }
 
+const sel = new Set(), revBusy = new Set();
+let lastRev = [];
+const blkCls = (k) => (sel.has(k) ? " on" : "") + (revBusy.has(k) ? " busy" : "");
+
 function renderPreview() {
   const blocks = buildDoc();
-  let html = "", curInd = null;
-  const open = (id) => { html += `<div class="ind-sec${state.tab === id ? " sel" : ""}" data-ind="${id}" title="눌러서 이 지표 편집">`; };
+  let html = "", curInd = null, curBlk = null;
+  const open = (id) => { html += `<div class="ind-sec" data-ind="${id}">`; };
+  const closeBlk = () => { if (curBlk) { html += "</div>"; curBlk = null; } };
   for (const b of blocks) {
     const ind = b.ind || null;
-    if (ind !== curInd) { if (curInd) html += "</div>"; if (ind) open(ind); curInd = ind; }
+    if (ind !== curInd) { closeBlk(); if (curInd) html += "</div>"; if (ind) open(ind); curInd = ind; }
+    const blk = b.blk ? `${ind}:${b.blk}` : null;
+    if (blk !== curBlk) { closeBlk(); if (blk) { html += `<div class="blk${blkCls(blk)}" data-blk="${blk}" title="눌러서 이 블록 선택">`; curBlk = blk; } }
     if (b.t === "pb") { html += `<div class="pb"></div>`; continue; }
     if (b.t === "p") { html += `<p class="ps-${b.ps}">${b.runs.map(r => `<span class="cs-${r.cs}">${esc(r.text)}</span>`).join("")}</p>`; continue; }
     if (b.t === "tbl") html += `<div class="ps-${b.ps}">${tableHtml(b)}</div>`;
   }
+  closeBlk();
   if (curInd) html += "</div>";
   $("#preview").innerHTML = html;
 }
@@ -1180,7 +1247,7 @@ function saveBlob(blob, filename) {
 // ============================================================
 const SYSTEM_PROMPT = `당신은 경기도 초등학교의 학교평가 업무 담당 교사를 돕는 보고서 작성 도우미입니다.
 담당 교사가 준 메모와 지표 정보를 바탕으로 「학교평가 보고서」의 '평가 결과' 부분 문장을 씁니다.
-[문체] 공문서 개조식. 한 항목은 한 문장(40~90자). 끝맺음은 '~함', '~임', '~하였음', '~할 예정임' 같은 명사형 종결. '~합니다', '~했다' 금지.
+[문체] 공문서 개조식. 한 항목은 한 문장(40~90자). 끝맺음을 통일함: 한 일·결과는 '~함'(예: 운영함, 실시함, 높임), 앞으로의 계획은 '~할 예정임'. '~하였음', '~합니다', '~했다'는 쓰지 않음. 한 항목 안에 문장을 두 개 넣지 않음.
 [기호] 항목 앞에 •, ∙, -, 숫자 같은 기호를 붙이지 않음(보고서가 자동으로 붙임).
 [사실] 메모와 정량 결과에 있는 사실·수치만 근거로 씀. 메모에 없는 수치, 날짜, 행사·프로그램 이름, 사업명·제도명·조직·위원회 이름(예: 두드림학교, 다중지원팀, 멘토링, 안심번호, 협약·규약), 설문 결과를 절대 지어내지 않음. 꼭 필요한 자리는 '○○', '○회', '○%'처럼 빈칸으로 남겨 담당자가 채우게 함.
 [빈칸] ○○는 숫자·이름이 들어갈 자리에만 쓰고 한 항목에 1개까지만 씀. '○○함', '○○하는', '○○한 실적'처럼 동사·서술어 자리에는 절대 쓰지 않음. 모르는 내용은 빈칸 대신 특정 이름 없는 자연스러운 문장으로 씀.
@@ -1188,14 +1255,15 @@ const SYSTEM_PROMPT = `당신은 경기도 초등학교의 학교평가 업무 �
 [우수·개선] 우수사례 및 개선 사항은 (우수) 항목을 먼저, (개선) 항목을 뒤에 씀.
 [표현] '강화', '체계', '내실', '도모', '제고', '지속적' 같은 상투어를 되풀이하지 말고, 누가·무엇을·어떻게 했는지 드러나는 구체적인 동사로 씀. 문장 끝에 마침표를 찍지 않음.
 [흐름] 평가 주안점에 답하듯 계획 → 운영 → 성과분석·환류가 이어지게 쓰고, 개선점은 다음 학년도 반영사항과 연결함.
-[출력] 요청한 키만 가진 JSON 객체 하나만 출력. 값은 문자열 배열이며 future만 문자열.`;
+[출력] 요청한 키만 가진 JSON 객체 하나만 출력. 값은 모두 문자열 배열(한 원소 = 한 항목).`;
 
 async function callGemini(prompt) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8000, temperature: 0.6 },
+    // 2.5 모델은 '생각'에도 출력 한도를 써서 긴 답이 잘릴 수 있으므로 생각을 끄고 한도를 넉넉히 둔다
+    generationConfig: { responseMimeType: "application/json", maxOutputTokens: 16384, temperature: 0.6, thinkingConfig: { thinkingBudget: 0 } },
   };
   // 사용자가 몰릴 때(429), 서버 오류(5xx), 연결 끊김은 잠깐 기다렸다 다시 시도
   for (let attempt = 0; ; attempt++) {
@@ -1210,10 +1278,13 @@ async function callGemini(prompt) {
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("");
       if (text) return text;
+      if (attempt < 2) { await sleep(1500); continue; }
       throw new Error("AI 응답이 비어 있어요. 다시 시도해 주세요.");
     }
-    if (!(res.status === 429 || res.status >= 500) || attempt >= 4) throw new Error(`AI 호출 실패(${res.status}). 잠시 후 다시 시도해 주세요.`);
-    await sleep(1000 * 2 ** attempt);
+    // 이 모델이 생각 설정을 모르면 빼고 다시 보낸다
+    if (res.status === 400 && payload.generationConfig.thinkingConfig) { delete payload.generationConfig.thinkingConfig; continue; }
+    if (!(res.status === 429 || res.status >= 500) || attempt >= 5) throw new Error(`AI 호출 실패(${res.status}). 잠시 후 다시 시도해 주세요.`);
+    await sleep(1500 * 2 ** attempt + Math.random() * 800);
   }
 }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -1265,33 +1336,53 @@ function indicatorContext(d) {
   return L2.join("\n");
 }
 
-function keySpec(d) {
-  return fieldsOf(d).map(f => `"${f.key}": ${f.key === "future" ? "문자열(1~2문장)" : `문자열 배열(${f.n}개)`} — ${f.label}${f.hint ? ` (${f.hint})` : ""}`).join("\n");
+function keySpec(d, only) {
+  return fieldsOf(d).filter(f => !only || only.includes(f.key)).map(f => `"${f.key}": 문자열 배열(${f.n}개) — ${f.label}${f.hint ? ` (${f.hint})` : ""}`).join("\n");
 }
 
-function applyResult(d, obj) {
+function applyResult(d, obj, only) {
   const st = S(d.id);
   st.prev = { ...st.out };
   for (const f of fieldsOf(d)) {
+    if (only && !only.includes(f.key)) continue;
     const v = obj[f.key];
     if (v === undefined || v === null) continue;
-    let arr = Array.isArray(v) ? v.map(cleanLine).filter(Boolean) : null;
-    if (arr && f.key === "cases") arr = [...arr.filter(x => !x.startsWith("(개선)")), ...arr.filter(x => x.startsWith("(개선)"))];
-    st.out[f.key] = arr ? arr.join("\n") : cleanLine(v);
+    let arr = lines((Array.isArray(v) ? v : [v]).map(String).join("\n"));
+    if (f.key === "cases") arr = [...arr.filter(x => !x.startsWith("(개선)")), ...arr.filter(x => x.startsWith("(개선)"))];
+    st.out[f.key] = arr.join("\n");
   }
+}
+
+// AI 답을 받아 JSON으로 읽기(잘려서 못 읽으면 한 번 더 요청)
+async function askJson(prompt) {
+  try { return parseJson(await callGemini(prompt)); }
+  catch (e) { if (!/읽지 못했/.test(e.message)) throw e; return parseJson(await callGemini(prompt)); }
+}
+
+// 고른 블록만 다시 쓰기
+async function aiWriteBlocks(id, bks, instruction) {
+  const d = IND[id], st = S(id);
+  const picked = blocksOf(d).filter(b => bks.includes(b.key));
+  const only = picked.flatMap(b => b.fields);
+  const empty = only.every(k => !(st.out[k] || "").trim());
+  const cur = Object.fromEntries(fieldsOf(d).map(f => [f.key, lines(st.out[f.key])]));
+  const req = instruction || (empty ? "아직 비어 있으니 새로 써 주세요" : "문장을 더 자연스럽고 구체적으로 다듬어 주세요");
+  const prompt = indicatorContext(d) + `\n\n[이 지표에 이미 쓴 글 전체 — 앞뒤 흐름을 맞추는 참고용]\n${JSON.stringify(cur, null, 1)}\n\n` +
+    `[고칠 부분] ${picked.map(b => b.label).join(", ")}\n[수정 요청] ${req}\n\n` +
+    `고칠 부분만 수정 요청대로 다시 쓰세요. 다른 부분과 내용이 겹치지 않게 하세요. 아래 키만 가진 JSON으로 출력하세요.\n${keySpec(d, only)}`;
+  applyResult(d, await askJson(prompt), only);
 }
 
 async function aiWrite(id, instruction) {
   const d = IND[id], st = S(id);
   let prompt = indicatorContext(d) + "\n\n";
   if (instruction) {
-    const cur = Object.fromEntries(fieldsOf(d).map(f => [f.key, f.key === "future" ? (st.out[f.key] || "") : lines(st.out[f.key])]));
+    const cur = Object.fromEntries(fieldsOf(d).map(f => [f.key, lines(st.out[f.key])]));
     prompt += `[현재 내용]\n${JSON.stringify(cur, null, 1)}\n\n[수정 요청] ${instruction}\n\n수정 요청대로 고쳐 쓰고, 요청하지 않은 부분은 최대한 그대로 두세요. 아래 키를 모두 가진 JSON으로 출력하세요.\n${keySpec(d)}`;
   } else {
     prompt += `위 내용으로 이 지표의 보고서 문장을 쓰세요. 아래 키를 모두 가진 JSON으로 출력하세요.\n${keySpec(d)}`;
   }
-  const obj = parseJson(await callGemini(prompt));
-  applyResult(d, obj);
+  applyResult(d, await askJson(prompt));
 }
 
 // ============================================================
@@ -1348,7 +1439,7 @@ function renderSchool() {
     <ol style="margin:0;padding-left:20px;font-size:14px">
       <li>위쪽 탭에서 지표(1-1 ~ 5-3)를 하나씩 열어 <b>정량 실적</b>과 <b>자체 판단 등급</b>을 고르고, <b>올해 한 일 메모</b>를 적어요.</li>
       <li>지표마다 <b>✨ AI로 쓰기</b>를 누르거나, 맨 위 <b>빈 지표 AI로 모두 쓰기</b>를 눌러요.</li>
-      <li>칸 안의 글을 직접 고치거나, "고칠 점"을 적어 <b>다시 쓰기</b>를 해요.</li>
+      <li>오른쪽 미리보기에서 <b>고칠 블록을 눌러 고른 뒤</b>(여러 개 가능) 아래 상자에 고칠 점을 적고 <b>선택 블록 고쳐 쓰기</b>를 눌러요. 칸 안의 글을 직접 고쳐도 돼요.</li>
       <li><b>한글(.hwpx) 저장</b>으로 내려받아 한글에서 열어 마무리해요.</li>
     </ol>
     <p class="hint" style="margin-top:8px">AI는 메모에 없는 수치·행사명을 지어내지 않고 ○○로 비워 둬요. 저장 전에 꼭 확인해 주세요. 입력 내용은 이 기기에만 저장돼요.</p>
@@ -1491,7 +1582,7 @@ async function copyText(text) {
   }
 }
 
-function refreshAll() { renderTabs(); renderForm(); renderPreview(); save(); }
+function refreshAll() { renderTabs(); renderForm(); renderPreview(); renderRev(); save(); }
 
 // ---------- AI 실행 ----------
 async function runOne(id, instruction) {
@@ -1520,23 +1611,66 @@ async function runAll() {
     if (!ans) return;
     if (ans === true && ready.length) targets.splice(0, targets.length, ...ready);
   }
-  let done = 0, failed = 0, next = 0;
+  let done = 0, next = 0;
+  const failed = [];
   setProgress(0, targets.length);
   const worker = async () => {
     while (next < targets.length) {
       const d = targets[next++];
       busy.add(d.id);
       setStatus(`AI가 보고서를 쓰는 중… ${done}/${targets.length}`);
-      try { await aiWrite(d.id); } catch (e) { failed++; }
+      try { await aiWrite(d.id); } catch (e) { failed.push(`${d.id}(${e.message.replace(/\.? ?다시.*$/, "")})`); }
       busy.delete(d.id); done++;
       setProgress(done, targets.length);
       renderTabs(); renderPreview(); save();
       if (state.tab === d.id) renderForm();
     }
   };
-  await Promise.all(Array.from({ length: Math.min(3, targets.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(2, targets.length) }, worker));
   setProgress(0, 0);
-  setStatus(failed ? `${targets.length - failed}개 완료, ${failed}개는 실패했어요. 해당 지표에서 다시 눌러 주세요.` : `${targets.length}개 지표를 모두 썼어요. ○○ 표시를 채우고 한글로 저장하세요.`, !!failed);
+  setStatus(failed.length ? `${targets.length - failed.length}개 완료, ${failed.length}개 실패: ${failed.join(", ")} — '빈 지표 AI로 모두 쓰기'를 다시 누르면 실패한 것만 다시 써요.` : `${targets.length}개 지표를 모두 썼어요. 미리보기에서 블록을 눌러 고치거나 ○○를 채우세요.`, !!failed.length);
+}
+
+// ---------- 블록 고치기 ----------
+function blkLabel(k) {
+  const [id, bk] = k.split(":");
+  const b = blocksOf(IND[id]).find(x => x.key === bk);
+  return `${id} ${b ? b.label : bk}`;
+}
+function renderRev() {
+  const n = sel.size;
+  $("#rev").classList.toggle("empty", !n);
+  $("#rev-hint").textContent = n ? `${n}개 블록 선택됨` : "미리보기에서 고칠 부분(블록)을 눌러 선택하세요. 여러 개 고를 수 있어요.";
+  $("#rev-clear").style.display = n ? "" : "none";
+  $("#rev-chips").innerHTML = [...sel].map(k => `<span class="chip">${esc(blkLabel(k))}<button data-act="rev-del" data-k="${k}" aria-label="선택 빼기">×</button></span>`).join("");
+  $("#rev-undo").style.display = lastRev.length ? "" : "none";
+  $("#rev-go").disabled = !n || revBusy.size > 0;
+  $("#rev-go").textContent = revBusy.size ? "✍️ 고치는 중…" : "✨ 선택 블록 고쳐 쓰기";
+}
+async function reviseBlocks(instruction) {
+  const keys = [...sel];
+  if (!keys.length || revBusy.size) return;
+  const byInd = {};
+  keys.forEach(k => { const [id, bk] = k.split(":"); (byInd[id] ||= []).push(bk); });
+  keys.forEach(k => revBusy.add(k));
+  renderPreview(); renderRev();
+  setStatus(`선택한 블록 ${keys.length}개를 고치는 중…`);
+  const ids = Object.keys(byInd), failed = [], ok = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < ids.length) {
+      const id = ids[next++];
+      try { await aiWriteBlocks(id, byInd[id], instruction); ok.push(id); }
+      catch (e) { failed.push(`${id}(${e.message.replace(/\.? ?다시.*$/, "")})`); }
+      byInd[id].forEach(bk => revBusy.delete(`${id}:${bk}`));
+      renderPreview();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(2, ids.length) }, worker));
+  lastRev = ok;
+  $("#rev-input").value = "";
+  renderTabs(); renderForm(); renderPreview(); renderRev(); save();
+  setStatus(failed.length ? `일부 실패: ${failed.join(", ")} — 다시 눌러 주세요.` : `블록 ${keys.length}개를 고쳤어요. 마음에 안 들면 '방금 고친 것 되돌리기'를 누르세요.`, !!failed.length);
 }
 
 // ---------- 예시 ----------
@@ -1580,6 +1714,15 @@ document.addEventListener("click", async (e) => {
   if (!e.target.closest(".menu")) $("#menu").classList.remove("show");
   const tab = e.target.closest("[data-tab]");
   if (tab) { state.tab = tab.dataset.tab; renderTabs(); renderForm(); renderPreview(); save(); $("#form").scrollTop = 0; return; }
+  const blkEl = e.target.closest("#preview [data-blk]");
+  if (blkEl) {
+    const k = blkEl.dataset.blk, id = k.split(":")[0];
+    if (sel.has(k)) sel.delete(k); else sel.add(k);
+    document.querySelectorAll("#preview [data-blk]").forEach(x => x.classList.toggle("on", sel.has(x.dataset.blk)));
+    renderRev();
+    if (state.tab !== id && !document.body.classList.contains("show-preview")) { state.tab = id; renderTabs(); renderForm(); save(); }
+    return;
+  }
   const sec = e.target.closest(".ind-sec");
   if (sec) {
     state.tab = sec.dataset.ind; renderTabs(); renderForm(); save();
@@ -1596,6 +1739,14 @@ document.addEventListener("click", async (e) => {
     btn.textContent = on ? "✏️ 입력하기" : "📄 미리보기"; window.scrollTo(0, 0); return;
   }
   if (act === "ai-one") return runOne(id);
+  if (act === "rev-quick") { const i = $("#rev-input"); i.value = i.value.trim() ? `${i.value.trim()}, ${btn.dataset.q}` : btn.dataset.q; i.focus(); return; }
+  if (act === "rev-del") { sel.delete(btn.dataset.k); renderPreview(); renderRev(); return; }
+  if (act === "rev-clear") { sel.clear(); renderPreview(); renderRev(); return; }
+  if (act === "rev-go") return reviseBlocks($("#rev-input").value.trim());
+  if (act === "rev-undo") {
+    lastRev.forEach(i => { const st = S(i); if (st.prev) { const cur = st.out; st.out = st.prev; st.prev = cur; } });
+    lastRev = []; refreshAll(); renderRev(); toast("방금 고친 내용을 되돌렸어요."); return;
+  }
   if (act === "memo-tpl") {
     S(id).memo = "■ 올해 한 일(시기·대상·횟수):\n■ 눈에 띈 성과(숫자·변화):\n■ 아쉬웠던 점:\n■ 내년에 바꿀 점:\n";
     renderForm(); save();
