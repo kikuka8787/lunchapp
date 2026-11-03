@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>학교평가 보고서 메이커</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --bg: #f3f5fa; --card: #ffffff; --text: #1d2433; --muted: #6b7385; --border: #dfe3ec;
+    --primary: #2b44c9; --primary-soft: #e8ecfb; --primary-text: #ffffff;
+    --ok: #13895f; --warn: #b8650a; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Noto Sans KR", "Malgun Gothic", system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5; font-size: 15px;
+    display: flex; flex-direction: column;
+  }
+  button {
+    min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px; cursor: pointer;
+    background: var(--primary); color: var(--primary-text); font: inherit; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  button.ghost { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  button.soft { background: var(--primary-soft); color: var(--primary); }
+  button.small { min-height: 32px; padding: 0 10px; font-size: 13px; }
+  input, select, textarea {
+    width: 100%; padding: 8px 10px; font: inherit; color: var(--text); background: #fff;
+    border: 1px solid var(--border); border-radius: 8px; min-height: 40px;
+  }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.55; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid #b9c5f5; border-color: var(--primary); }
+  label { font-weight: 600; font-size: 14px; }
+
+  /* 상단 */
+  .top {
+    background: var(--primary); color: #fff; padding: 10px 16px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex-shrink: 0;
+  }
+  .top h1 { font-size: 19px; margin: 0; flex: 1; min-width: 200px; }
+  .top h1 small { font-weight: 400; opacity: .8; font-size: 13px; margin-left: 6px; }
+  .top .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .top button { background: rgba(255,255,255,.16); }
+  .top button.main { background: #fff; color: var(--primary); }
+  .menu { position: relative; }
+  .menu-list {
+    position: absolute; right: 0; top: 46px; background: #fff; border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.15); padding: 6px; z-index: 30;
+    display: none; min-width: 190px;
+  }
+  .menu-list.show { display: block; }
+  .menu-list button { width: 100%; justify-content: flex-start; background: transparent; color: var(--text); font-weight: 500; }
+  .menu-list button:hover { background: var(--primary-soft); }
+
+  #progress { height: 4px; background: transparent; flex-shrink: 0; }
+  #progress .bar { height: 100%; width: 0; background: #ffb020; transition: width .3s; }
+  #status { font-size: 13px; color: var(--muted); padding: 4px 16px; flex-shrink: 0; min-height: 26px; }
+  #status.err { color: #c0322b; font-weight: 600; }
+
+  /* 본문 2단 */
+  .layout { flex: 1; display: flex; min-height: 0; }
+  .editor {
+    width: 46%; min-width: 380px; max-width: 640px; background: #fff; border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  #tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; border-bottom: 1px solid var(--border); }
+  .tab {
+    min-height: 32px; padding: 0 10px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    background: #f1f3f8; color: var(--text); border: 1px solid transparent;
+  }
+  .tab.on { background: var(--primary); color: #fff; }
+  .tab .dot { width: 7px; height: 7px; border-radius: 50%; background: #c6cbd8; display: inline-block; }
+  .tab .dot.half { background: #f0a020; }
+  .tab .dot.done { background: #19a974; }
+  .tab.on .dot { box-shadow: 0 0 0 2px #fff; }
+  #form { flex: 1; overflow-y: auto; padding: 16px 16px 60px; }
+  .preview-wrap { flex: 1; overflow-y: auto; padding: 20px; min-width: 0; }
+
+  .card { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; background: #fff; }
+  .card h3 { margin: 0 0 10px; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card h3 .badge { margin-left: auto; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .hint { font-size: 12.5px; color: var(--muted); }
+  .badge { font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); }
+  .ind-head { background: linear-gradient(90deg, #2b44c9, #5b74e6); color: #fff; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+  .ind-head .code { font-size: 13px; opacity: .85; }
+  .ind-head .title { font-size: 18px; font-weight: 800; margin: 2px 0 6px; }
+  .ind-head .meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+  .ind-head .meta span { background: rgba(255,255,255,.18); padding: 2px 10px; border-radius: 999px; }
+  .ind-head details { margin-top: 8px; font-size: 13px; }
+  .ind-head details summary { cursor: pointer; opacity: .9; }
+  .qitem { border-top: 1px dashed var(--border); padding-top: 10px; margin-top: 10px; }
+  .qitem:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+  .qitem .qt { font-weight: 700; font-size: 14.5px; margin-bottom: 6px; }
+  .calc { margin-top: 6px; font-size: 13.5px; font-weight: 700; color: var(--ok); background: #e9f7f1; padding: 6px 10px; border-radius: 8px; }
+  .calc.empty { color: var(--muted); background: #f3f4f7; font-weight: 500; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+  .checks label { font-weight: 500; display: flex; gap: 6px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+  .checks input { width: 18px; min-height: 18px; margin-top: 3px; flex-shrink: 0; }
+  .elem { border-top: 1px dashed var(--border); padding: 10px 0 2px; }
+  .elem:first-of-type { border-top: 0; padding-top: 0; }
+  .elem-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .elem-top b { flex: 1; min-width: 150px; }
+  .elem-top select { width: auto; min-height: 34px; padding: 4px 8px; }
+  .elem ul { margin: 2px 0 6px; padding-left: 18px; font-size: 13px; color: #4a5162; }
+  .out-field textarea { min-height: 84px; font-size: 14px; }
+  .ai-box { background: #f6f8ff; border: 1px solid #d5ddfa; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row > input { flex: 1; min-width: 160px; }
+  .group-title { font-weight: 800; margin: 12px 0 6px; color: var(--primary); }
+
+  /* 미리보기 종이 */
+  .paper {
+    background: #fff; max-width: 820px; margin: 0 auto; padding: 44px 48px; box-shadow: 0 2px 14px rgba(20,30,60,.12);
+    font-family: "Noto Serif KR", "Batang", "바탕", serif; font-size: 13px; color: #000; line-height: 1.6;
+  }
+  .paper p { margin: 0; }
+  .paper .ps-center { text-align: center; }
+  .paper .ps-right { text-align: right; }
+  .paper .ps-h2 { margin-top: 16px; margin-bottom: 4px; }
+  .paper .ps-h3 { margin: 10px 0 3px 4px; }
+  .paper .ps-bullet { padding-left: 18px; text-indent: -12px; }
+  .paper .ps-tblPara { margin: 6px 0; }
+  .paper .cs-title { font-family: "Noto Sans KR", sans-serif; font-size: 23px; font-weight: 900; letter-spacing: 1px; }
+  .paper .cs-slogan { font-family: "Noto Sans KR", sans-serif; font-size: 12px; color: #333; letter-spacing: 3px; }
+  .paper .cs-school { font-family: "Noto Sans KR", sans-serif; font-size: 14px; font-weight: 700; }
+  .paper .cs-h2 { font-family: "Noto Sans KR", sans-serif; font-weight: 800; font-size: 14px; }
+  .paper .cs-h3 { font-family: "Noto Sans KR", sans-serif; font-weight: 700; font-size: 13px; }
+  .paper .cs-bodyB { font-weight: 700; }
+  .paper .cs-small { font-size: 11.5px; color: #444; }
+  .paper .cs-gray { color: #a2a8b6; }
+  .paper table { border-collapse: collapse; margin: 0; font-family: "Noto Sans KR", "Malgun Gothic", sans-serif; font-size: 12px; line-height: 1.45; }
+  .paper td { padding: 4px 7px; vertical-align: middle; }
+  .paper td p { margin: 0; }
+  .paper td.bf-grid, .paper td.bf-label, .paper td.bf-head, .paper td.bf-sub, .paper td.bf-score { border: 1px solid #000; }
+  .paper td.bf-label { background: #dce3f4; font-weight: 700; text-align: center; }
+  .paper td.bf-head { background: #c5d1f0; font-weight: 700; text-align: center; }
+  .paper td.bf-sub { background: #f2f5fc; }
+  .paper td.bf-score { background: #fff7d6; }
+  .paper td.bf-chapNum { background: #1f33c9; color: #fff; font-weight: 800; font-size: 17px; text-align: center; }
+  .paper td.bf-chapBar { background: linear-gradient(90deg, #6f87e2, #dfe6fb); font-weight: 800; font-size: 17px; text-align: center; letter-spacing: 4px; }
+  .paper td.bf-pill { background: #2e3a87; color: #fff; font-weight: 700; text-align: center; border-radius: 999px; font-size: 13px; }
+  .paper td.bf-titleBox { border-top: 5px solid #1f33c9; border-bottom: 5px solid #1f33c9; padding: 8px; }
+  .paper td.al-center { text-align: center; }
+  .paper td.cs-cellB { font-weight: 700; }
+  .paper td.cs-h2 { font-weight: 800; font-size: 14px; }
+  .paper td.bul p { padding-left: 12px; text-indent: -12px; }
+  .paper .pb { border-top: 2px dashed #c9cfdd; margin: 30px -48px 26px; position: relative; }
+  .paper .pb::after { content: "쪽 나눔"; position: absolute; right: 8px; top: -11px; background: #fff; color: #9aa3b5; font-size: 11px; padding: 0 6px; font-family: sans-serif; }
+  .ind-sec { border-radius: 6px; cursor: pointer; transition: box-shadow .15s; }
+  .ind-sec:hover { box-shadow: 0 0 0 2px #c9d3f7; }
+  .ind-sec.sel { box-shadow: 0 0 0 3px #ffb020; }
+
+  /* 토스트 / 모달 */
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    background: #111827; color: #fff; padding: 10px 18px; border-radius: 999px; z-index: 50;
+    opacity: 0; pointer-events: none; transition: .25s; font-size: 14px; max-width: 90vw; text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.45); padding: 16px; z-index: 60; }
+  #modal.show { display: flex; }
+  #modal .box { background: #fff; border-radius: var(--radius); padding: 22px; max-width: 380px; width: 100%; }
+  #modal p { margin: 0 0 16px; white-space: pre-line; }
+
+  .mobile-switch { display: none; }
+  @media (max-width: 900px) {
+    body { height: auto; min-height: 100%; }
+    .layout { flex-direction: column; }
+    .editor { width: 100%; min-width: 0; max-width: none; border-right: 0; }
+    #form { overflow: visible; }
+    .preview-wrap { padding: 8px; }
+    .paper { padding: 22px 14px; font-size: 12px; }
+    .paper .pb { margin-left: -14px; margin-right: -14px; }
+    .paper table { font-size: 11px; }
+    .mobile-switch { display: inline-flex; }
+    body.show-preview .editor { display: none; }
+    body:not(.show-preview) .preview-wrap { display: none; }
+    .grid2, .checks { grid-template-columns: 1fr; }
+    .top h1 { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+  <header class="top">
+    <h1>📘 학교평가 보고서 메이커 <small>2026 경기 학교평가 지표</small></h1>
+    <div class="actions">
+      <button class="mobile-switch" data-act="switch">📄 미리보기</button>
+      <button data-act="ai-all">✨ 빈 지표 AI로 모두 쓰기</button>
+      <button class="main" data-act="hwpx">⬇ 한글(.hwpx) 저장</button>
+      <div class="menu">
+        <button data-act="menu" aria-label="더보기">⋯ 더보기</button>
+        <div class="menu-list" id="menu">
+          <button data-act="copy">📋 보고서 글 전체 복사</button>
+          <button data-act="sample">🧪 예시 내용 불러오기</button>
+          <button data-act="backup">💾 작업 백업 파일 저장</button>
+          <button data-act="restore">📂 백업 파일 불러오기</button>
+          <button data-act="reset">🗑 처음부터 다시</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div id="progress"><div class="bar"></div></div>
+  <div id="status"></div>
+  <div class="layout">
+    <aside class="editor">
+      <nav id="tabs"></nav>
+      <section id="form"></section>
+    </aside>
+    <main class="preview-wrap"><div id="preview" class="paper"></div></main>
+  </div>
+  <input type="file" id="file-restore" accept=".json,application/json" hidden>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="modal" role="dialog" aria-modal="true">
+    <div class="box">
+      <p id="modal-msg"></p>
+      <div class="row" style="justify-content:flex-end">
+        <button class="ghost" id="modal-no">취소</button>
+        <button id="modal-yes">확인</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ============================================================
+//  학교평가 보고서 메이커 (Gemini Canvas용 단일 HTML)
+//  - 근거: 2026 경기 학교평가 안내서(일반학교 초등 지표), 보고서 틀(예시)
+//  - Canvas 안에서는 apiKey를 비워 두면 Gemini가 자동으로 연결된다
+// ============================================================
+const apiKey = "";
+const MODEL = "gemini-2.5-flash-preview-09-2025";
+const STORE_KEY = "school-eval-report-maker-v1";
+
+// ---------- 안전한 저장소 ----------
+const store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); }
+    catch (e) { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+    catch (e) { return false; }
+  }
+};
+
+// ============================================================
+//  1. 평가 지표 정의 (2026 경기 학교평가 안내서 · 초등)
+// ============================================================
+const G5 = ["매우 우수", "우수", "보통", "미흡", "매우 미흡"];
+const scale = (max, r = [1, .8, .6, .4, .2]) => r.map(x => Math.round(max * x * 10) / 10);
+
+const AREAS = [
+  { no: 1, name: "학교 자율과 책임으로 역량을 키우는 교육", pts: 30 },
+  { no: 2, name: "지역협력으로 꿈을 펼치는 교육", pts: 10 },
+  { no: 3, name: "시공간을 넘어 배움을 확장하는 교육", pts: 10 },
+  { no: 4, name: "학교중심의 공교육 확대를 지원하는 행정", pts: 10 },
+  { no: 5, name: "환류", pts: 40 },
+];
+
+const PCT5 = (a, b, c, d, scores) => [
+  [a, `${a}% 이상`, scores[0]], [b, `${b}% 이상 ~ ${a}% 미만`, scores[1]],
+  [c, `${c}% 이상 ~ ${b}% 미만`, scores[2]], [d, `${d}% 이상 ~ ${c}% 미만`, scores[3]],
+  [-Infinity, `${d}% 미만`, scores[4]],
+];
+
+const INDICATORS = [
+  {
+    id: "1-1", area: 1, title: "학생 핵심역량 함양을 위한 교육과정 운영 노력", pts: 15, method: "정량, 정성",
+    purpose: ["교육과정-수업-평가의 통합 설계를 통한 학교 교육과정의 질적 운영",
+      "학생의 사고 중심 수업과 성장지원 평가의 실천 촉진",
+      "교원 전문성 공유와 학교 교육과정 실행력 확산"],
+    quant: { max: 7, items: [
+      { key: "q1", type: "select", label: "학교자율시간 운영 학년", max: 2,
+        options: [["2개 학년 이상 운영", 2], ["1개 학년 운영", 1.5], ["미운영", 0]], grades: ["매우 우수", "우수", "미흡"] },
+      { key: "q2", type: "rate", label: "교육과정·수업·평가 연수 이수율", max: 4,
+        a: "재직 교원 수(A)", b: "교육과정·수업·평가 연수 10시간 이상 이수 교원 수(B)",
+        bands: [[80, "80% 이상", 4], [70, "70~79%", 3], [60, "60~69%", 2], [50, "50~59%", 1], [-Infinity, "50% 미만", .5]] },
+      { key: "q3", type: "select", label: "수업 톡톡(Talk Talk) 운영", max: 1,
+        hint: "공개수업, 학년협의회, 수업공유회 등 수업나눔 활동 운영 여부",
+        options: [["운영(P)", 1], ["미운영(F)", 0]], grades: ["P", "F"] },
+    ] },
+    qual: { title: "교육과정 운영 내실화를 위한 노력", max: 8, elements: [
+      { name: "계획 수립의 적절성", max: 2, scores: [2, 1.6, 1.2, .8, .4], points: [
+        "학교 실태와 학생 발달 특성을 분석하여 교육과정을 구성하였는가?",
+        "교육과정·수업·평가를 통합 설계의 관점으로 계획하였는가?",
+        "학교 전체 차원의 방향이 일관되게 제시되었는가?"] },
+      { name: "운영 내용의 실천성", max: 3, scores: [3, 2.4, 1.8, 1.2, .6], points: [
+        "학생의 사고과정을 중심에 둔 수업을 운영하였는가?",
+        "질문과 탐구 중심 학습활동을 설계하고 운영하였는가?",
+        "논술형 평가 등을 실행하고 피드백을 통해 학생의 성장을 지원하는가?",
+        "교사 협의와 수업공유를 통해 교육과정-수업-평가 통합 설계를 지원하는가?"] },
+      { name: "성과분석 및 환류", max: 3, scores: [3, 2.4, 1.8, 1.2, .6], points: [
+        "교육과정 운영 결과를 분석하여 개선점을 도출하였는가?",
+        "교과·학년협의회나 학습공동체 등을 통한 환류 체계를 통해 교육과정을 개선하였는가?",
+        "개선 결과가 다음 학년도 교육과정 계획에 반영되었는가?"] },
+    ] },
+  },
+  {
+    id: "1-2", area: 1, title: "기초학력 보장 실천", pts: 5, method: "정성",
+    purpose: ["기초학력 보장을 통한 학교 교육의 책무성 강화"],
+    qual: { title: "기초학력 보장 실천을 위한 노력", max: 5, elements: [
+      { name: "계획 수립의 적절성", max: 1.5, scores: [1.5, 1.2, .9, .6, .3], points: [
+        "전년도 기초학력 보장 추진 내용을 평가, 분석하였는가?",
+        "평가분석에 기초하여 기초학력 보장 계획을 수립하였는가?",
+        "학습지원대상학생을 위한 기초학력 보장 교육활동 계획이 구체적인가?"] },
+      { name: "운영 내용의 실천성", max: 2, scores: [2, 1.6, 1.2, .8, .2], points: [
+        "종합적인 진단을 통하여 학습지원대상학생을 선정하였는가?",
+        "기초학력 미도달 예방을 위하여 실효성 있는 방안을 마련하여 실천하였는가?",
+        "학생 개별 맞춤형 프로그램을 유의미하게 운영하였는가?",
+        "학교의 특성을 반영한 다양한 기초학력 보장 프로그램을 운영하였는가?"] },
+      { name: "성과분석 및 환류", max: 1.5, scores: [1.5, 1.2, .9, .6, .3], points: [
+        "학년 초 기초학력 미도달로 진단된 학생들이 학년 말에 향상되었는가?",
+        "기초학력 보장 관련 예산을 효율적으로 집행하였는가?",
+        "성과와 문제점을 분석하고 다음 학년도 운영의 개선점을 도출하였는가?"] },
+    ] },
+  },
+  {
+    id: "1-3", area: 1, title: "인성·세계시민교육 활성화", pts: 5, method: "정성",
+    purpose: ["학교교육과정과 연계한 인성·세계시민교육 활성화"],
+    qual: { title: "인성·세계시민교육 활성화를 위한 실천 노력", max: 5, elements: [
+      { name: "계획 수립의 적절성", max: 1, scores: [1, .8, .6, .4, .2], points: [
+        "전년도 인성·세계시민교육 운영 결과를 평가, 분석하였는가?",
+        "평가 분석에 기초하여 인성·세계시민교육 계획을 수립하였는가?",
+        "교육공동체의 의견을 수렴하고 인성교육 계획을 수립하였는가?"] },
+      { name: "운영 내용의 실천성", max: 3, scores: [3, 2.5, 2, 1.5, 1], points: [
+        "인성·세계시민교육 함양의 학교 문화 조성을 위하여 노력을 기울였는가?",
+        "교과 및 창의적 체험활동 등 교육과정과 연계한 인성·세계시민교육을 추진하였는가?",
+        "학교의 상황 및 학년별 위계를 고려하여 실천 중심 인성·세계시민교육을 추진하였는가?",
+        "가정과 학교가 함께하는 인성교육을 활성화하고 학부모 인성교육 역량 강화를 지원하였는가?",
+        "인성교육 지원체계를 적절히 구축하여 연계와 지역사회 협력을 통해 통합적으로 인성교육을 추진하였는가?(교원 인성교육 연수 포함)",
+        "세계시민교육 운영을 위한 교원의 역량을 강화하고 유관기관과 협업하여 운영하였는가?"] },
+      { name: "성과분석 및 환류", max: 1, scores: [1, .8, .6, .4, .2], points: [
+        "학교 상황에 적절한 방법을 활용하여 성과분석을 시행하였는가?",
+        "예산을 효율적으로 집행하였는가?",
+        "성과와 문제점을 분석하고 다음 학년도 운영의 개선점을 도출하였는가?"] },
+    ] },
+  },
+  {
+    id: "1-4", area: 1, title: "교육활동 보호", pts: 5, method: "정량",
+    purpose: ["교육공동체 권리와 책임의 균형이 있는 상호존중의 학교문화 조성 및 안전한 교육 전념 여건 마련으로 교육활동 보호 강화"],
+    quant: { max: 5, items: [
+      { key: "q1", type: "checks", label: "교육활동 침해행위 예방교육 계획 수립 및 홈페이지 게시", max: 1,
+        items: [["예방교육 계획 수립", .5], ["학교 홈페이지 게시(3. 31.까지)", .5]] },
+      { key: "q2", type: "count", label: "교육활동 보호 환경 조성 노력", max: 2,
+        items: ["교육활동 보호 안내장 발송", "민원면담실 조성(지정 포함)", "교육활동 보호 통화연결음 구축",
+          "교육활동 보호 문화 조성 행사 운영(캠페인, 자치회 활동, 창의적 체험활동 연계 등)",
+          "녹음전화기 설치", "안심번호 서비스 사용", "비상벨 설치"],
+        bands: [[5, "5개 항목 이상 시행", 2], [4, "4개 항목 시행", 1.6], [2, "2~3개 항목 시행", 1.2], [1, "1개 항목 시행", .8], [-Infinity, "미시행", 0]] },
+      { key: "q3", type: "checks", label: "상호존중 학교문화 조성 계획 수립 및 운영", max: 2,
+        items: [["상호존중 학교문화 조성 계획 수립", .8], ["학교맞춤형 상호존중 학교문화 활동 운영(캠페인, 약속 선포식 등)", .6], ["활동 내용 홍보 및 공유(보도자료, 가정통신문, 연수 등)", .6]] },
+    ] },
+  },
+  {
+    id: "2-1", area: 2, title: "지역교육협력 운영", pts: 5, method: "정성",
+    purpose: ["학교가 지역사회의 인적·물적 자원을 활용하여 교육과정과 연계한 다양한 학습경험을 제공함으로써 학생의 성장과 배움의 기회 확장",
+      "학교가 지자체, 교육청, 지역기관과의 협력 체계를 구축하고 운영함으로써 지역과 함께 성장",
+      "학교가 지역과의 협력을 매개하고 확산하며, 지역사회가 교육 주체로 참여하도록 하여 지속가능한 지역교육생태계 구축"],
+    qual: { title: "지역교육협력 운영을 위한 노력", max: 5, elements: [
+      { name: "계획 수립의 적절성", max: 1.5, scores: [1.5, 1.3, 1.1, .9, .7], points: [
+        "학교 특성과 지역 여건을 반영한 지역교육협력 운영이 포함된 학교교육과정을 계획하였는가?",
+        "학교가 지역의 다양한 자원(인적·물적)을 활용하여 학교-지역 연계 교육으로 확대하기 위한 계획이 있는가?",
+        "학생, 학부모 및 교원들의 수요조사(요구) 기반으로 지역교육협력 운영 방안을 계획하였는가?"] },
+      { name: "운영 내용의 실천성", max: 2, scores: [2, 1.8, 1.6, 1.4, 1.2], points: [
+        "계획한 지역교육협력 활동이 실제로 충실히 실행되었는가?",
+        "학교 교육과정, 교육활동 및 방과후 활동 등과 지역 자원이 연계되었는가?",
+        "일회성이 아닌 지속적인 수업 및 활동이 이루어졌는가?"] },
+      { name: "성과분석 및 환류", max: 1.5, scores: [1.5, 1.3, 1.1, .9, .7], points: [
+        "지역교육협력 교육과정 운영 결과를 분석하여 개선점을 도출하였는가?",
+        "다음 학년도 계획에 반영하는 환류 체계가 설정 및 운영되었는가?",
+        "평가 결과를 학교 교육공동체와 공유하였는가?"] },
+    ] },
+  },
+  {
+    id: "2-2", area: 2, title: "진로교육 내실화 노력", pts: 5, method: "정성(초등학교는 정량 해당 없음)",
+    purpose: ["초등부터 이어지는 진로교육의 연속성과 발달 단계 맞춤 지원을 통한 학생 맞춤형 진로교육 강화"],
+    qual: { title: "진로교육 내실화를 위한 실천 노력", max: 5, approx: true, elements: [
+      { name: "계획 수립의 적절성", max: 1.5, scores: scale(1.5), points: [
+        "학교 진로교육 운영을 위한 전년도 프로그램을 평가 분석하였는가?",
+        "진로연계 교과수업을 포함하여 진로교육 기본 계획을 수립하였는가?",
+        "진로체험 프로그램을 포함하여 기본 계획을 수립하였는가?"] },
+      { name: "운영 내용의 실천성", max: 2, scores: scale(2), points: [
+        "학교 교육과정 운영계획에 따라 진로교육을 유의미하게 전개하였는가?",
+        "'꿈it(잇)다' 시스템을 활용하여 학생 맞춤형 진로설계를 지원하였는가?(초등 5~6학년)",
+        "학생들에게 유의미한 진로체험 프로그램을 운영하였는가?"] },
+      { name: "성과분석 및 환류", max: 1.5, scores: scale(1.5), points: [
+        "학교 상황에 적절한 방법을 활용하여 성과분석을 시행하였는가?",
+        "예산을 효율적으로 집행하였는가?",
+        "성과와 문제점을 분석하고 다음 학년도 운영의 개선점을 도출하였는가?"] },
+    ] },
+  },
+  {
+    id: "3-1", area: 3, title: "디지털 기반 수업 활성화", pts: 5, method: "정량, 정성",
+    purpose: ["디지털 기반 수업을 통한 학생 맞춤형 교육 강화"],
+    quant: { max: 2, items: [
+      { key: "q1", type: "rate", label: "디지털 기반 수업 실시 비율", max: 2,
+        a: "전체 수업시수(A) — 3~6학년 교과+창체", b: "디지털 기반 수업시수(B) — 하이러닝, AI 코스웨어, 디지털 시민교육 등",
+        bands: PCT5(10, 8, 6, 4, [2, 1.6, 1.2, .8, .4]) },
+    ] },
+    qual: { title: "디지털 기반 수업 실천 노력", max: 3, approx: true, elements: [
+      { name: "계획 수립의 적절성", max: 1, scores: scale(1), points: [
+        "인적, 물적 자원을 고려한 디지털 기반 수업계획을 수립하였는가?",
+        "현황 분석에 기초하여 운영 방향, 체계, 세부내용, 환류의 내용을 수립하였는가?",
+        "학습목표를 도달하기 위해 교수·학습 설계가 구체적으로 수립되었는가?"] },
+      { name: "운영 내용의 실천성", max: 1, scores: scale(1), points: [
+        "디지털 기반 수업을 활용하여 학생 맞춤형 교육을 실천하였는가?",
+        "학년별, 교과별, 주제별 특성을 반영한 디지털 기반 수업을 운영하였는가?",
+        "디지털 기반 수업 운영에 대한 교사의 참여가 적극적으로 이루어질 수 있도록 다양한 지원을 하였는가?"] },
+      { name: "성과분석 및 환류", max: 1, scores: scale(1), points: [
+        "학교 상황에 적절한 방법을 활용하여 성찰하고 환류하였는가?",
+        "예산을 효율적으로 사용하였는가?",
+        "성과와 문제점을 분석하고 다음 학년도 운영의 개선점을 도출하였는가?"] },
+    ] },
+  },
+  {
+    id: "3-2", area: 3, title: "교원 역량 강화", pts: 5, method: "정량",
+    purpose: ["학생 성장 지원과 학교 교육력 강화를 위한 교원 역량 강화"],
+    quant: { max: 5, items: [
+      { key: "q1", type: "rate", label: "교원 역량 강화 연수 이수율", max: 5,
+        a: "재직 중인 교원 수(A)", b: "교원 역량 강화 연수를 30시간 이상 이수한 재직 교원 수(B)",
+        hint: "집합·원격 연수 모두 포함, 개인별 총합 30시간 이상. 1-1 지표의 교육과정·수업·평가 연수 시간 중복 인정",
+        bands: PCT5(90, 80, 70, 60, [5, 4, 3, 2, 1]) },
+    ] },
+  },
+  {
+    id: "4-1", area: 4, title: "학교회계 효율적 집행 제고", pts: 5, method: "정량",
+    purpose: ["학교 여건을 고려한 효율적 학교회계 집행 역량 강화",
+      "학교 재정 운용의 건전성·자율성·책무성 확보",
+      "교수학습활동(교육활동비)에 직접 투입되는 예산 우선 확보"],
+    quant: { max: 5, items: [
+      { key: "q1", type: "rate", label: "전년도(2025학년도) 학교회계 최종 집행률", max: 2,
+        a: "전년도 예산현액(A, 원)", b: "전년도 최종 집행액(B, 원)",
+        bands: PCT5(95, 92, 89, 86, [2, 1.5, 1, .5, 0]) },
+      { key: "q2", type: "rate", label: "당해연도 학교회계(교육운영비) 집행률", max: 2,
+        a: "당해연도 예산현액(A, 교육운영비, 원)", b: "당해연도 교육운영비 집행액(B, 원)",
+        hint: "교육운영비: 교육운영비(B100201)·학습준비물(B100202)·학생복지비(B100203)",
+        bands: PCT5(88, 86, 84, 82, [2, 1.5, 1, .5, 0]) },
+      { key: "q3", type: "rate", label: "당해연도 교육활동비 비율", max: 1,
+        a: "당해연도 예산현액(A, 원)", b: "당해연도 교육활동비 편성액(B, 원)",
+        hint: "교육활동비: 기본적 교육활동·선택적 교육활동 단위사업비",
+        bands: PCT5(20, 16, 12, 8, [1, .8, .6, .4, .2]) },
+    ] },
+  },
+  {
+    id: "4-2", area: 4, title: "학교시설 개방", pts: 5, method: "정량",
+    purpose: ["학교시설 개방 활성화를 통한 지역주민의 이용 증대 등으로 지역사회와 학교 간의 협력 활성화"],
+    quant: { max: 5, items: [
+      { key: "q1", type: "facility", label: "학교시설 개방 여부(개방 가능 일수)", max: 3,
+        hint: "운동장 50% + 체육관 50% 반영. 운동장은 최대 120일까지 인정. 매년 4. 1.까지 개방 가능 일수를 홈페이지에 공지",
+        bands: [[100, "100일 이상", 3], [80, "80일 이상 ~ 100일 미만", 2.8], [60, "60일 이상 ~ 80일 미만", 2.6], [40, "40일 이상 ~ 60일 미만", 2.4], [-Infinity, "40일 미만", 2.2]] },
+      { key: "q2", type: "checks", label: "학교시설 개방 및 이용실태 점검 결과", max: 2,
+        items: [["외부 게시", .6], ["홈페이지 예약 현황 게시", .6], ["홈페이지 개방 실적 게시", .6], ["일시사용 허가대장 정비", .2]] },
+    ] },
+  },
+  {
+    id: "5-1", area: 5, title: "학교자율장학 운영", pts: 10, method: "정성",
+    purpose: ["자율과 협력에 기반한 학교교육의 '계획-운영-평가-환류' 선순환 체계 구축·운영으로 학교자율운영 확대"],
+    qual: { title: "학교자율장학 운영의 선순환 체계 실천 및 노력", max: 10, thirdLabel: "평가의 타당성과 환류의 실효성", elements: [
+      { name: "계획 수립의 적절성", max: 3, scores: [3, 2.5, 2, 1.5, 1], points: [
+        "학교평가 결과, 학교교육과정 운영 결과 등을 바탕으로 학교의 여건과 필요를 분석하여 학교자율장학의 목표와 방향을 설정하였는가?",
+        "학교 구성원이 함께 숙의하여 실행 계획을 수립하고 학교자율장학의 방법과 범위를 도출하였는가?"] },
+      { name: "운영 내용의 실천성", max: 4, scores: [4, 3.5, 3, 2.5, 2], points: [
+        "수업과 학교 운영 전반을 함께 성찰하고, 실제 사례를 중심으로 개선점을 탐색하였는가?",
+        "학교교육으로 이어지는 교원의 전문성 신장(전문적 학습공동체 등)을 위해 노력하였는가?",
+        "교육공동체의 협력에 기반하여 계획에 따라 체계적으로 실행하였는가?"] },
+      { name: "평가의 타당성과 환류의 실효성", max: 3, scores: [3, 2.5, 2, 1.5, 1], points: [
+        "실행결과를 교육공동체와 공유하고 성과와 과제를 분석하여 개선 방향을 도출하였는가?",
+        "다음 학년도 학교자율장학 계획에 반영하고, 교육공동체와 공유하여 학교의 지속적인 성장과 발전 방안을 모색하였는가?"] },
+    ] },
+  },
+  {
+    id: "5-2", area: 5, title: "학교자율과제 운영", pts: 15, method: "정성",
+    purpose: ["학교 비전과 현안에 기반한 학교자율과제의 '진단-계획-운영-평가·환류' 단계별 실천으로 학교자율운영 역량 강화"],
+    budget: true,
+    qual: { title: "학교자율과제 운영 단계별 노력", max: 15, diag: true, thirdLabel: "평가 및 환류의 타당성", elements: [
+      { name: "현안 진단의 구체성", max: 6, scores: [6, 4.8, 3.6, 2.4, 1.2], points: [
+        "다양한 협의체를 활용하여 학교의 실태를 진단하고 분석하였는가?",
+        "학교 비전, 교육 목표 등에 기반하여 학교 현안을 도출하였는가?",
+        "학교자율역량을 진단하고 결과를 활용하였는가?"] },
+      { name: "계획 수립의 적절성", max: 3, scores: [3, 2.4, 1.8, 1.2, .6], points: [
+        "학교 구성원들이 숙의 과정을 거쳐 학교자율과제 운영 계획을 수립하였는가?",
+        "학교자율과제를 교육과정에 반영하고 적절한 규모의 예산을 편성하였는가?"] },
+      { name: "운영 내용의 실천성", max: 3, scores: [3, 2.4, 1.8, 1.2, .6], points: [
+        "교육과정과 연계하여 학교자율과제를 운영하였는가?",
+        "실행 과정을 중간 점검하여 학교자율과제 운영의 실천성을 높였는가?"] },
+      { name: "평가 및 환류의 타당성", max: 3, scores: [3, 2.4, 1.8, 1.2, .6], points: [
+        "학교자율과제 운영의 성과와 문제점을 분석하고 다음 학년도 운영의 개선점으로 환류하였는가?",
+        "학교자율과제 예산을 계획에 따라 효율적으로 집행하였는가?"] },
+    ] },
+  },
+  {
+    id: "5-3", area: 5, title: "교육공동체 의견 수렴 및 차년도 교육계획 반영 노력", pts: 15, method: "정성",
+    purpose: ["교육공동체 의견 수렴 결과를 통해 학교 교육활동과 운영 전반을 성찰하고, 다음 학년도 교육과정 및 학교 운영 계획 수립에 환류하는 학교의 자율운영 역량 강화",
+      "학생의 요구와 흥미, 관심이 반영된 교육활동이 학생 맞춤형으로 편성·운영되고 있는지 학생의 인식을 확인하여 교육과정 운영의 내실화에 활용",
+      "교육과정·수업·평가에 대한 교직원의 전문적 연구와 실천, 수업 나눔 문화의 정착 정도를 교직원 인식으로 확인하여 전문성 신장에 활용",
+      "학생 맞춤형 교육과정 운영과 교육활동 전반에 대한 학부모의 인식을 확인하고, 소통과 참여를 바탕으로 학교 운영의 신뢰성과 책무성 강화"],
+    groups: [
+      { key: "s", name: "학생", points: [
+        "학생의 요구경험을 파악하기 위해 설문 문항을 학교의 교육활동 특성에 맞게 구성하였는가?",
+        "학생 의견을 단순 집계가 아닌, 교육활동의 강점과 개선점 관점에서 분석하였는가?",
+        "학생 의견을 바탕으로 학교 교육활동을 성찰하고, 다음 학년도 교육계획에 반영하고자 하는 방향이 구체적으로 드러나는가?"] },
+      { key: "t", name: "교직원", points: [
+        "교직원의 교육과정·수업·평가 운영 경험과 학교 운영 전반에 대한 인식을 충분히 수렴하였는가?",
+        "교직원 의견을 통해 학교 운영의 성과와 한계를 성찰하고, 개선이 필요한 영역을 도출하였는가?",
+        "교직원의 의견이 다음 학년도 교육과정 운영, 수업·평가 개선, 학교 운영 방향 설정에 유의미하게 활용되고 있는가?"] },
+      { key: "p", name: "학부모", points: [
+        "학부모의 관점에서 교육활동과 학교 운영을 진단할 수 있도록 의견 수렴이 이루어졌는가?",
+        "학부모 의견을 바탕으로 학교의 소통방식, 교육활동 지원, 학생 성장 지원 측면을 성찰하였는가?",
+        "학부모 의견을 다음 학년도 교육계획 및 학교 운영 개선 방향에 반영하고자 하는 의지가 드러나는가?"] },
+    ],
+    groupElements: [
+      { name: "의견 수렴의 충실성", max: 1.5, scores: [1.5, 1.2, .9, .6, .3] },
+      { name: "분석 및 성찰의 깊이", max: 2, scores: [2, 1.6, 1.2, .8, .4] },
+      { name: "차년도 계획 반영의 구체성 및 실현 가능성", max: 1.5, scores: [1.5, 1.2, .9, .6, .3] },
+    ],
+  },
+];
+const IND = Object.fromEntries(INDICATORS.map(d => [d.id, d]));
+
+// 지표마다 AI가 채우고 사람이 고치는 칸
+function fieldsOf(def) {
+  const f = [];
+  if (def.quant) {
+    f.push({ key: "qres", label: "정량 결과분석(우수사례, 개선사항)", n: "2~4", sect: "quant" });
+    f.push({ key: "qnext", label: "정량 · 다음 학년도 반영사항", n: "1~2", sect: "quant" });
+  }
+  if (def.qual) {
+    if (def.qual.diag) f.push({ key: "diag", label: "현안 진단", n: "3~4", sect: "qual" });
+    f.push({ key: "plan", label: "계획 수립", n: "3~4", sect: "qual" });
+    f.push({ key: "op", label: "운영 내용", n: "4~5", sect: "qual" });
+    f.push({ key: "res", label: "운영결과", n: "2~3", sect: "qual" });
+    f.push({ key: "cases", label: "우수사례 및 개선 사항", n: "3~4", sect: "qual", hint: "앞에 (우수) 또는 (개선)을 붙여 구분" });
+    f.push({ key: "next", label: "다음 학년도 반영 사항", n: "2~3", sect: "qual" });
+  }
+  if (def.groups) {
+    for (const g of def.groups) {
+      f.push({ key: g.key + "_m", label: `${g.name} · 의견 수렴 방법과 내용`, n: "2~3", sect: g.key });
+      f.push({ key: g.key + "_a", label: `${g.name} · 분석 및 성찰(강점·개선점)`, n: "3~4", sect: g.key });
+      f.push({ key: g.key + "_n", label: `${g.name} · 차년도 계획 반영`, n: "2~3", sect: g.key });
+    }
+    f.push({ key: "next", label: "다음 학년도 반영사항(종합)", n: "2~3", sect: "total" });
+  }
+  f.push({ key: "future", label: "향후 추진 계획(Ⅳ장 표에 들어감)", n: "1~2", sect: "future" });
+  return f;
+}
+
+// ============================================================
+//  2. 상태
+// ============================================================
+function defaultState() {
+  return {
+    school: { name: "", slogan: "", year: "2026", principal: "", vice: "", address: "", classes: "", students: "", studentInfo: "", vision: "" },
+    opts: { scales: true },
+    ind: {},
+    tab: "school",
+  };
+}
+let state = Object.assign(defaultState(), store.get(STORE_KEY, {}) || {});
+const S = (id) => (state.ind[id] ||= { q: {}, g: {}, memo: "", out: {}, prev: null });
+let saveTimer = null, previewTimer = null;
+function save() { clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set(STORE_KEY, state), 300); }
+
+// ============================================================
+//  3. 점수 계산
+// ============================================================
+const num = (v) => { if (v === undefined || v === null || String(v).trim() === "") return null; const n = Number(String(v).replace(/[,\s]/g, "")); return isFinite(n) ? n : null; };
+const r2 = (x) => Math.round(x * 100) / 100;
+const fmt = (x) => (Math.round(x * 100) / 100).toString();
+const band = (bands, v) => bands.find(b => v >= b[0]);
+
+function evalQuant(item, q) {
+  const k = item.key;
+  if (item.type === "select") {
+    const i = q[k];
+    if (i === undefined || i === "") return { done: false };
+    const o = item.options[Number(i)];
+    return { done: true, value: o[0], grade: item.grades ? item.grades[Number(i)] : o[0], score: o[1] };
+  }
+  if (item.type === "rate") {
+    const a = num(q[k + "_a"]), b = num(q[k + "_b"]);
+    if (a === null || b === null || a <= 0) return { done: false };
+    const pct = r2(b / a * 100);
+    const bd = band(item.bands, pct), gi = item.bands.indexOf(bd);
+    return { done: true, value: `${pct}%`, grade: G5[gi] || bd[1], range: bd[1], score: bd[2], detail: `A ${q[k + "_a"]} / B ${q[k + "_b"]}` };
+  }
+  const touched = () => Object.keys(q).some(x => x.startsWith(k + "_"));
+  if ((item.type === "checks" || item.type === "count") && !touched()) return { done: false };
+  if (item.type === "checks") {
+    const on = item.items.filter((_, i) => q[`${k}_${i}`]);
+    const score = r2(on.reduce((s, x) => s + x[1], 0));
+    return { done: true, value: on.length ? on.map(x => x[0]).join(", ") : "해당 없음", grade: `${on.length}/${item.items.length}개 충족`, score };
+  }
+  if (item.type === "count") {
+    const n = item.items.filter((_, i) => q[`${k}_${i}`]).length;
+    const bd = band(item.bands, n), gi = item.bands.indexOf(bd);
+    return { done: true, value: `${n}개 항목 시행`, grade: G5[gi], range: bd[1], score: bd[2] };
+  }
+  if (item.type === "facility") {
+    const g = num(q[k + "_g"]), y = num(q[k + "_y"]);
+    if (g === null && y === null) return { done: false };
+    const days = r2(Math.min(g || 0, 120) * .5 + (y || 0) * .5);
+    const bd = band(item.bands, days), gi = item.bands.indexOf(bd);
+    return { done: true, value: `${days}일`, grade: G5[gi], range: bd[1], score: bd[2], detail: `운동장 ${g ?? 0}일, 체육관 ${y ?? 0}일` };
+  }
+  return { done: false };
+}
+
+function qualElems(def) {
+  if (def.qual) return def.qual.elements.map((e, i) => ({ ...e, gk: String(i) }));
+  if (def.groups) return def.groups.flatMap(g => def.groupElements.map((e, i) => ({ ...e, gk: `${g.key}${i}`, group: g.name })));
+  return [];
+}
+function evalElem(e, st) {
+  const v = st.g[e.gk];
+  if (v === undefined || v === "") return { done: false };
+  return { done: true, grade: G5[Number(v)], score: e.scores[Number(v)] };
+}
+function indScore(def) {
+  const st = S(def.id);
+  let score = 0, total = 0, done = 0;
+  for (const it of def.quant?.items || []) { total++; const r = evalQuant(it, st.q); if (r.done) { done++; score += r.score; } }
+  for (const e of qualElems(def)) { total++; const r = evalElem(e, st); if (r.done) { done++; score += r.score; } }
+  return { score: r2(score), done, total, complete: done === total };
+}
+function indStatus(def) {
+  const st = S(def.id);
+  const fields = fieldsOf(def);
+  const filled = fields.filter(f => (st.out[f.key] || "").trim()).length;
+  if (filled >= fields.length) return "done";
+  if (filled > 0 || st.memo.trim()) return "half";
+  return "";
+}
+
+// ============================================================
+//  4. 보고서 문서 모델 (미리보기와 한글 파일이 같은 모델을 쓴다)
+//     블록: {t:'p'} 문단 / {t:'tbl'} 표 / {t:'pb'} 쪽 나눔
+// ============================================================
+const lines = (s) => String(s || "").split("\n").map(x => x.replace(/^\s*(?:[∙•·\-*]|\d+[.)])\s*/, "").trim()).filter(Boolean);
+const P = (text, cs = "body", ps = "body", extra = {}) => ({ t: "p", ps, runs: [{ text, cs }], ...extra });
+const cell = (c, o = {}) => ({ c, ...o });
+const L = (c, o = {}) => cell(c, { bf: "label", align: "center", cs: "cellB", ...o });
+const H = (c, o = {}) => cell(c, { bf: "head", align: "center", cs: "cellB", ...o });
+
+function bulletCell(text, o = {}) {
+  const ls = lines(text);
+  return cell(ls.length ? ls : ["", ""], { bullet: true, ...o });
+}
+function chapter(num, title) {
+  return { t: "tbl", ps: "chapPara", widths: [2600, 900, 17000], abs: true, bf: "none",
+    rows: [[cell(num, { bf: "chapNum", align: "center", cs: "chapNum", h: 2300 }), cell("", { bf: "none" }), cell(title, { bf: "chapBar", align: "center", cs: "chapTitle" })]] };
+}
+function pill(text, rest) {
+  const rows = [[cell(text, { bf: "pill", align: "center", cs: "pill", h: 1900 })]];
+  const widths = [Math.max(9000, text.length * 1250 + 2400)];
+  if (rest) { rows[0].push(cell("", { bf: "none" }), cell(rest, { bf: "none", cs: "h2" })); widths.push(600, 30000); }
+  return { t: "tbl", ps: "pillPara", widths, abs: true, bf: "none", rows };
+}
+
+function buildDoc() {
+  const s = state.school, B = [];
+  const year = s.year || "2026";
+  const opt = state.opts;
+
+  // ── 표지 머리
+  B.push(P(s.slogan || " ", "slogan", "center"));
+  B.push({ t: "tbl", ps: "tblPara", widths: [1], bf: "none", rows: [[cell(`${year}학년도 학교평가 보고서`, { bf: "titleBox", align: "center", cs: "title", h: 3800 })]] });
+  B.push(P(s.name || "○○초등학교", "school", "right"));
+
+  // ── Ⅰ. 학교 현황
+  B.push(chapter("Ⅰ", "학교 현황"));
+  B.push(pill("학교 기본현황 및 특성"));
+  B.push({ t: "tbl", ps: "tblPara", widths: [16, 30, 16, 12, 26], rows: [
+    [L("학교명", { rs: 2 }), cell(s.name, { rs: 2, align: "center" }), L("인적사항", { rs: 2 }), L("학교장"), cell(s.principal, { align: "center" })],
+    [L("교감"), cell(s.vice, { align: "center" })],
+    [L("주소"), cell(s.address, { span: 4 })],
+    [L("학급수"), cell(s.classes, { align: "center" }), L("총 학생수", { span: 2 }), cell(s.students, { align: "center" })],
+    [L(`학생현황(${year}. 12. 31.)`, { span: 5 })],
+    [cell(s.studentInfo ? s.studentInfo.split("\n") : "", { span: 5, align: "center", h: 1700 })],
+  ] });
+  B.push(pill("학교 비전 및 교육 목표"));
+  const vis = String(s.vision || "").split("\n").filter(x => x.trim());
+  if (vis.length) vis.forEach(v => B.push(P(v, "body", "bullet")));
+  else B.push(P("(학교 비전과 교육 목표를 입력하세요)", "gray", "bullet"));
+
+  // ── Ⅱ. 평가지표
+  B.push({ t: "pb" });
+  B.push(chapter("Ⅱ", "평가지표"));
+  const ovRows = [[H("평가영역"), H("평가지표", { span: 2 }), H("평가방법"), H("배점"), H("자체 점수")]];
+  let grand = 0, grandDone = true;
+  for (const a of AREAS) {
+    const defs = INDICATORS.filter(d => d.area === a.no);
+    defs.forEach((d, i) => {
+      const sc = indScore(d); grand += sc.score; if (!sc.complete) grandDone = false;
+      const row = [];
+      if (i === 0) row.push(L(`${a.no}. ${a.name}\n(${a.pts}점)`, { rs: defs.length, bf: "sub", cs: "cellB" }));
+      row.push(cell(d.id, { align: "center" }), cell(d.title), cell(d.method.replace(/\(.*\)/, ""), { align: "center" }),
+        cell(String(d.pts), { align: "center" }), cell(sc.done ? fmt(sc.score) : "", { align: "center", bf: "score" }));
+      ovRows.push(row);
+    });
+  }
+  ovRows.push([L("합계", { span: 4 }), cell("100", { align: "center", cs: "cellB" }), cell(grand ? fmt(grand) : "", { align: "center", cs: "cellB", bf: "score" })]);
+  B.push({ t: "tbl", ps: "tblPara", widths: [21, 6, 44, 10, 7, 12], rows: ovRows });
+  B.push(P("※ 자체 점수는 담당자가 입력한 정량 실적과 정성 자체 판단으로 계산한 참고 점수임." + (grandDone ? "" : " (일부 미입력)"), "small", "body"));
+
+  // ── Ⅲ. 평가지표별 평가 결과
+  B.push({ t: "pb" });
+  B.push(chapter("Ⅲ", "평가지표별 평가 결과"));
+  let firstInd = true;
+  for (const a of AREAS) {
+    const defs = INDICATORS.filter(d => d.area === a.no);
+    defs.forEach((d, i) => {
+      if (!firstInd) B.push({ t: "pb" });
+      firstInd = false;
+      if (i === 0) B.push(pill("평가 영역", `${a.name}(${a.pts}점)`));
+      buildIndicator(B, d, opt);
+    });
+  }
+
+  // ── Ⅳ. 향후 추진 계획
+  B.push({ t: "pb" });
+  B.push(chapter("Ⅳ", "향후 추진 계획"));
+  const fRows = [[H("평가영역"), H("평가지표", { span: 2 }), H("향후 추진 계획")]];
+  for (const a of AREAS) {
+    const defs = INDICATORS.filter(d => d.area === a.no);
+    defs.forEach((d, i) => {
+      const row = [];
+      if (i === 0) row.push(L(`${a.no}. ${a.name}\n(${a.pts}점)`, { rs: defs.length, bf: "sub" }));
+      row.push(cell(`${d.id}\n(${d.pts}점)`, { align: "center" }), cell(d.title), bulletCell(S(d.id).out.future, { ind: d.id }));
+      fRows.push(row);
+    });
+  }
+  B.push({ t: "tbl", ps: "tblPara", widths: [18, 9, 25, 48], rows: fRows });
+  return B;
+}
+
+function scaleTable(item) {
+  if (item.type === "select") {
+    return { t: "tbl", ps: "tblPara", widths: [16, ...item.options.map(() => 84 / item.options.length)], rows: [
+      [H("구분"), ...item.options.map((o, i) => H(item.grades ? item.grades[i] : o[0]))],
+      [L("급간"), ...item.options.map(o => cell(o[0], { align: "center" }))],
+      [L("점수"), ...item.options.map(o => cell(fmt(o[1]), { align: "center" }))]] };
+  }
+  if (item.type === "checks") {
+    return { t: "tbl", ps: "tblPara", widths: [16, ...item.items.map(() => 84 / item.items.length)], rows: [
+      [H("구분"), ...item.items.map(x => H(x[0]))],
+      [L("점수"), ...item.items.map(x => cell(`실시 ${fmt(x[1])} / 미실시 0`, { align: "center" }))]] };
+  }
+  const bands = item.bands;
+  return { t: "tbl", ps: "tblPara", widths: [16, 16.8, 16.8, 16.8, 16.8, 16.8], rows: [
+    [H("구분"), ...bands.map((_, i) => H(G5[i]))],
+    [L("급간"), ...bands.map(b => cell(b[1], { align: "center" }))],
+    [L("점수"), ...bands.map(b => cell(fmt(b[2]), { align: "center" }))]] };
+}
+
+function buildIndicator(B, d, opt) {
+  const st = S(d.id), out = st.out, sc = indScore(d);
+  const push = (b) => { b.ind = d.id; B.push(b); };
+  const ab = ["가", "나", "다", "라"]; let k = 0;
+
+  push({ t: "tbl", ps: "tblPara", widths: [13, 9, 53, 12, 13], rows: [
+    [L("평가지표"), cell(d.id, { align: "center", cs: "cellB" }), cell(d.title, { cs: "cellB" }), L("평가점수"), cell(`${sc.done ? fmt(sc.score) : "    "} / ${d.pts}`, { align: "center", bf: "score", cs: "cellB" })],
+    [L("평가방법"), cell(d.method, { span: 4 })],
+    [L("평가목적"), cell(d.purpose, { span: 4, bullet: true })],
+  ] });
+
+  // 평가 척도
+  if (opt.scales) {
+    push(P("▶ 평가 척도", "h2", "h2"));
+    if (d.quant) {
+      push(P(`${ab[k++]}. 정량평가`, "h3", "h3"));
+      d.quant.items.forEach(it => {
+        push(P(`○ ${it.label}(${fmt(it.max)}점)` + (it.type === "rate" ? `  ※ (B÷A)×100, A: ${it.a.replace(/\(A.*$/, "")}, B: ${it.b.replace(/\(B.*$/, "")}` : ""), "bodyB", "bullet"));
+        if (it.type === "count") push(P("시행 항목: " + it.items.join(", "), "small", "bullet"));
+        if (it.hint) push(P("※ " + it.hint, "small", "bullet"));
+        push(scaleTable(it));
+      });
+    }
+    if (d.qual) {
+      push(P(`${ab[k++]}. 정성평가 : ${d.qual.title}(${d.qual.max}점)`, "h3", "h3"));
+      push({ t: "tbl", ps: "tblPara", widths: [18, 72, 10], rows: [
+        [H("평가요소"), H("평가 주안점"), H("점수")],
+        ...d.qual.elements.map(e => [L(e.name, { bf: "sub" }), cell(e.points, { bullet: true }), cell(fmt(e.max), { align: "center" })])] });
+      push({ t: "tbl", ps: "tblPara", widths: [28, 14.4, 14.4, 14.4, 14.4, 14.4], rows: [
+        [H("구분"), ...G5.map(g => H(g))],
+        ...d.qual.elements.map(e => [L(`${e.name}(${fmt(e.max)}점)`, { bf: "sub" }), ...e.scores.map(v => cell(fmt(v), { align: "center" }))])] });
+      if (d.qual.approx) push(P("※ 안내서에 등급별 점수가 따로 제시되지 않아 배점 비율(100·80·60·40·20%)로 환산한 참고 척도임.", "small", "bullet"));
+    }
+    if (d.groups) {
+      push(P(`${ab[k++]}. 정성평가 : 학생·교직원·학부모 의견 수렴 및 교육활동 환류 노력(15점)`, "h3", "h3"));
+      push({ t: "tbl", ps: "tblPara", widths: [18, 72, 10], rows: [
+        [H("평가요소"), H("평가 주안점"), H("점수")],
+        ...d.groups.map(g => [L(`${g.name}\n의견 수렴 및 환류`, { bf: "sub" }), cell(g.points, { bullet: true }), cell("5", { align: "center" })])] });
+      push({ t: "tbl", ps: "tblPara", widths: [34, 13.2, 13.2, 13.2, 13.2, 13.2], rows: [
+        [H("구분(학생·교직원·학부모 각 5점)"), ...G5.map(g => H(g))],
+        ...d.groupElements.map(e => [L(`${e.name}(${fmt(e.max)}점)`, { bf: "sub" }), ...e.scores.map(v => cell(fmt(v), { align: "center" }))])] });
+      push(P("※ 의견 수렴 방식과 문항 구성은 학교의 특성과 여건을 고려하여 학교가 자율적으로 운영함.", "small", "bullet"));
+    }
+  }
+
+  // 평가 결과
+  push(P("▶ 평가 결과", "h2", "h2"));
+  k = 0;
+  if (d.quant) {
+    push(P(`${ab[k++]}. 정량평가`, "h3", "h3"));
+    const items = d.quant.items, n = items.length, w = 80 / n;
+    push({ t: "tbl", ps: "tblPara", widths: [20, ...items.map(() => w)], rows: [
+      [L("평가요소"), ...items.map(it => H(it.label))],
+      [L("평가결과"), ...items.map(it => {
+        const r = evalQuant(it, st.q);
+        return cell(r.done ? [r.value, `${r.grade} (${fmt(r.score)}점)`] : ["", `( / ${fmt(it.max)}점)`], { align: "center", bf: "score" });
+      })],
+      [L("결과분석\n(우수사례,\n개선사항)"), bulletCell(out.qres, { span: n })],
+      [L("다음 학년도\n반영사항"), bulletCell(out.qnext, { span: n })],
+    ] });
+  }
+  if (d.qual) {
+    push(P(`${ab[k++]}. 정성평가 : ${d.qual.title}`, "h3", "h3"));
+    const els = d.qual.elements, w = 80 / els.length;
+    push({ t: "tbl", ps: "tblPara", widths: [20, ...els.map(() => w)], rows: [
+      [L("평가요소"), ...els.map(e => H(e.name))],
+      [L("평가결과"), ...els.map((e, i) => { const r = evalElem({ ...e, gk: String(i) }, st); return cell(r.done ? `${r.grade} (${fmt(r.score)}점)` : `( / ${fmt(e.max)}점)`, { align: "center", bf: "score" }); })],
+    ] });
+    const bulletsP = (label, text) => {
+      push(P(`○ ${label}`, "h3", "h3"));
+      const ls = lines(text);
+      (ls.length ? ls : [""]).forEach(x => push(P("∙ " + x, "body", "bullet")));
+    };
+    if (d.qual.diag) bulletsP("현안 진단", out.diag);
+    bulletsP("계획 수립", out.plan);
+    bulletsP("운영 내용", out.op);
+    push(P(`○ ${d.qual.thirdLabel || "성과 분석 및 환류"}`, "h3", "h3"));
+    push({ t: "tbl", ps: "tblPara", widths: [20, 80], rows: [
+      [L("운영결과"), bulletCell(out.res)],
+      [L("우수사례 및\n개선 사항"), bulletCell(out.cases)],
+      [L("다음 학년도\n반영 사항"), bulletCell(out.next)],
+    ] });
+  }
+  if (d.budget) {
+    const q = st.q;
+    const rate = (a, b) => { const A = num(a), Bv = num(b); return A && Bv !== null ? `${r2(Bv / A * 100)}%` : ""; };
+    push(P("○ 학교자율과제 예산 편성 및 집행", "h3", "h3"));
+    push({ t: "tbl", ps: "tblPara", widths: [36, 34, 30], rows: [
+      [H("A. 학교 기본운영비 중 규모별\n표준교육비 총액(천원)"), H("B. 학교자율과제 편성 예산(천원)"), H("C. 편성률(%) (B/A)×100")],
+      [cell(q.b_std || "", { align: "center" }), cell(q.b_plan || "", { align: "center" }), cell(rate(q.b_std, q.b_plan), { align: "center", bf: "score" })],
+    ] });
+    push(P("※ 학교자율과제 예산은 학교 기본운영비 중 규모별 표준교육비 총액의 5% 이상 편성 권장", "small", "bullet"));
+    push({ t: "tbl", ps: "tblPara", widths: [36, 34, 30], rows: [
+      [H("A. 학교자율과제 편성 예산(천원)"), H("B. 학교자율과제 집행 예산(천원)"), H("C. 집행률(%) (B/A)×100")],
+      [cell(q.b_plan || "", { align: "center" }), cell(q.b_used || "", { align: "center" }), cell(rate(q.b_plan, q.b_used), { align: "center", bf: "score" })],
+    ] });
+    push(P("※ 학교자율과제 예산 집행은 편성 예산 대비 95% 이상 권장(회계 마감일 기준 집행 예정액 포함)", "small", "bullet"));
+  }
+  if (d.groups) {
+    d.groups.forEach((g, gi) => {
+      push(P(`${ab[gi]}. ${g.name} 의견 수렴 및 환류 노력`, "h3", "h3"));
+      let sum = 0, all = true;
+      const scoreRows = d.groupElements.map((e, i) => {
+        const r = evalElem({ ...e, gk: `${g.key}${i}` }, st);
+        if (r.done) sum += r.score; else all = false;
+        return [L(`${e.name}(${fmt(e.max)}점)`, { bf: "sub" }), cell(r.done ? r.grade : "", { align: "center" }), cell(r.done ? fmt(r.score) : "", { align: "center", bf: "score" })];
+      });
+      push({ t: "tbl", ps: "tblPara", widths: [52, 28, 20], rows: [
+        [H("평가요소"), H("평가결과"), H("점수")], ...scoreRows,
+        [L("총계", { span: 2 }), cell(all || sum ? `${fmt(sum)} / 5` : "", { align: "center", bf: "score", cs: "cellB" })]] });
+      push({ t: "tbl", ps: "tblPara", widths: [20, 80], rows: [
+        [L("의견 수렴\n방법과 내용"), bulletCell(out[g.key + "_m"])],
+        [L("분석 및 성찰\n(강점·개선점)"), bulletCell(out[g.key + "_a"])],
+        [L("차년도 계획\n반영"), bulletCell(out[g.key + "_n"])],
+      ] });
+    });
+    push({ t: "tbl", ps: "tblPara", widths: [20, 80], rows: [[L("다음 학년도\n반영사항"), bulletCell(out.next)]] });
+  }
+}
+
+// ============================================================
+//  5. 미리보기 (HTML)
+// ============================================================
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const cellLines = (c) => Array.isArray(c.c) ? c.c : String(c.c ?? "").split("\n");
+
+function tableHtml(b) {
+  const total = b.widths.reduce((s, x) => s + x, 0);
+  const width = b.abs ? `${Math.min(100, total / BODY_W * 100)}%` : "100%";
+  let h = `<table style="width:${width}"><colgroup>${b.widths.map(x => `<col style="width:${x / total * 100}%">`).join("")}</colgroup>`;
+  for (const row of b.rows) {
+    h += "<tr>";
+    for (const c of row) {
+      const ls = cellLines(c);
+      const body = ls.map(x => {
+        const text = c.bullet ? `∙ ${x}` : x;
+        return `<p>${esc(text) || "&nbsp;"}</p>`;
+      }).join("");
+      const cls = [`bf-${c.bf || "grid"}`, c.align === "center" ? "al-center" : "", c.bullet ? "bul" : "", c.cs ? `cs-${c.cs}` : ""].join(" ");
+      h += `<td class="${cls}"${spanAttr(c)}>${body}</td>`;
+    }
+    h += "</tr>";
+  }
+  return h + "</table>";
+}
+function spanAttr(c) {
+  let a = "";
+  if (c.span > 1) a += ` colspan="${c.span}"`;
+  if (c.rs > 1) a += ` rowspan="${c.rs}"`;
+  return a;
+}
+
+function renderPreview() {
+  const blocks = buildDoc();
+  let html = "", curInd = null;
+  const open = (id) => { html += `<div class="ind-sec${state.tab === id ? " sel" : ""}" data-ind="${id}" title="눌러서 이 지표 편집">`; };
+  for (const b of blocks) {
+    const ind = b.ind || null;
+    if (ind !== curInd) { if (curInd) html += "</div>"; if (ind) open(ind); curInd = ind; }
+    if (b.t === "pb") { html += `<div class="pb"></div>`; continue; }
+    if (b.t === "p") { html += `<p class="ps-${b.ps}">${b.runs.map(r => `<span class="cs-${r.cs}">${esc(r.text)}</span>`).join("")}</p>`; continue; }
+    if (b.t === "tbl") html += `<div class="ps-${b.ps}">${tableHtml(b)}</div>`;
+  }
+  if (curInd) html += "</div>";
+  $("#preview").innerHTML = html;
+}
+function schedulePreview() { clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 250); }
+
+// ============================================================
+//  6. 한글(.hwpx) 만들기 — 같은 문서 모델을 OWPML로 옮긴다
+// ============================================================
+const PAGE = { w: 59528, h: 84186, ml: 5669, mr: 5669, mt: 4252, mb: 4252, hd: 2835, ft: 2835 };
+const BODY_W = PAGE.w - PAGE.ml - PAGE.mr;
+const FONTS = ["함초롬바탕", "함초롬돋움", "HY헤드라인M"];
+
+// 글자 모양: [키, 크기(1/100pt), 글꼴, 굵게, 색]
+const CHAR = [
+  ["body", 1050, 0, 0, "#000000"], ["bodyB", 1050, 0, 1, "#000000"], ["cell", 950, 1, 0, "#000000"],
+  ["cellB", 950, 1, 1, "#000000"], ["title", 2100, 2, 0, "#000000"], ["slogan", 1000, 1, 0, "#333333"],
+  ["chapNum", 1500, 1, 1, "#FFFFFF"], ["chapTitle", 1500, 1, 1, "#000000"], ["pill", 1050, 1, 1, "#FFFFFF"],
+  ["h2", 1150, 1, 1, "#000000"], ["h3", 1050, 1, 1, "#000000"], ["school", 1200, 1, 1, "#000000"],
+  ["small", 900, 1, 0, "#444444"], ["gray", 1050, 0, 0, "#999999"],
+];
+// 문단 모양: [키, 정렬, 줄간격%, 왼쪽여백, 들여쓰기(음수=내어쓰기), 위, 아래]
+const PARA = [
+  ["body", "JUSTIFY", 160, 0, 0, 0, 0], ["center", "CENTER", 160, 0, 0, 0, 0], ["right", "RIGHT", 160, 0, 0, 0, 0],
+  ["cell", "JUSTIFY", 140, 0, 0, 0, 0], ["cellC", "CENTER", 140, 0, 0, 0, 0], ["cellBullet", "JUSTIFY", 140, 0, -1000, 0, 0],
+  ["h2", "LEFT", 160, 0, 0, 1000, 200], ["h3", "LEFT", 160, 300, 0, 500, 100], ["bullet", "JUSTIFY", 160, 600, -1100, 0, 0],
+  ["tblPara", "LEFT", 130, 0, 0, 200, 200], ["chapPara", "LEFT", 130, 0, 0, 1400, 600], ["pillPara", "LEFT", 130, 600, 0, 700, 300],
+];
+// 테두리/배경: [키, 선(SOLID/NONE), 배경색, 위아래만 굵은 선]
+const FILL = [
+  ["page", "NONE", null], ["charNone", "NONE", "none"], ["grid", "SOLID", null], ["label", "SOLID", "#DCE3F4"],
+  ["head", "SOLID", "#C5D1F0"], ["sub", "SOLID", "#F2F5FC"], ["score", "SOLID", "#FFF7D6"],
+  ["chapNum", "NONE", "#1F33C9"], ["chapBar", "NONE", "#B4C5F2"], ["pill", "NONE", "#2E3A87"],
+  ["titleBox", "TB", null], ["none", "NONE", null],
+];
+const CS = Object.fromEntries(CHAR.map((c, i) => [c[0], i]));
+const PS = Object.fromEntries(PARA.map((p, i) => [p[0], i]));
+const BF = Object.fromEntries(FILL.map((f, i) => [f[0], i + 1]));
+const CHAR_H = Object.fromEntries(CHAR.map(c => [c[0], c[1]]));
+
+const NS = 'xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph" xmlns:hp10="http://www.hancom.co.kr/hwpml/2016/paragraph" xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section" xmlns:hc="http://www.hancom.co.kr/hwpml/2011/core" xmlns:hh="http://www.hancom.co.kr/hwpml/2011/head" xmlns:hhs="http://www.hancom.co.kr/hwpml/2011/history" xmlns:hm="http://www.hancom.co.kr/hwpml/2011/master-page" xmlns:hpf="http://www.hancom.co.kr/schema/2011/hpf" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf/" xmlns:ooxmlchart="http://www.hancom.co.kr/hwpml/2016/ooxmlchart" xmlns:hwpunitchar="http://www.hancom.co.kr/hwpml/2016/HwpUnitChar" xmlns:epub="http://www.idpf.org/2007/ops" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"';
+const xesc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function headerXml() {
+  const langs = ["HANGUL", "LATIN", "HANJA", "JAPANESE", "OTHER", "SYMBOL", "USER"];
+  const fontface = (lang) => `<hh:fontface lang="${lang}" fontCnt="${FONTS.length}">${FONTS.map((f, i) =>
+    `<hh:font id="${i}" face="${f}" type="TTF" isEmbedded="0"><hh:typeInfo familyType="FCAT_GOTHIC" weight="6" proportion="4" contrast="0" strokeVariation="1" armStyle="1" letterform="1" midline="1" xHeight="1"/></hh:font>`).join("")}</hh:fontface>`;
+  const seven = (name, v) => `<hh:${name} hangul="${v}" latin="${v}" hanja="${v}" japanese="${v}" other="${v}" symbol="${v}" user="${v}"/>`;
+  const charPr = ([, h, font, bold, color], i) => `<hh:charPr id="${i}" height="${h}" textColor="${color}" shadeColor="none" useFontSpace="0" useKerning="0" symMark="NONE" borderFillIDRef="${BF.charNone}">` +
+    seven("fontRef", font) + seven("ratio", 100) + seven("spacing", 0) + seven("relSz", 100) + seven("offset", 0) +
+    (bold ? "<hh:bold/>" : "") + `<hh:underline type="NONE" shape="SOLID" color="#000000"/><hh:strikeout shape="NONE" color="#000000"/><hh:outline type="NONE"/><hh:shadow type="NONE" color="#C0C0C0" offsetX="10" offsetY="10"/></hh:charPr>`;
+  const margin = (left, intent, prev, next) => `<hh:margin><hc:intent value="${intent}" unit="HWPUNIT"/><hc:left value="${left}" unit="HWPUNIT"/><hc:right value="0" unit="HWPUNIT"/><hc:prev value="${prev}" unit="HWPUNIT"/><hc:next value="${next}" unit="HWPUNIT"/></hh:margin>`;
+  const paraPr = ([, align, line, left, intent, prev, next], i) => {
+    const m = margin(left, intent, prev, next) + `<hh:lineSpacing type="PERCENT" value="${line}" unit="HWPUNIT"/>`;
+    return `<hh:paraPr id="${i}" tabPrIDRef="0" condense="0" fontLineHeight="0" snapToGrid="1" suppressLineNumbers="0" checked="0" textDir="LTR">` +
+      `<hh:align horizontal="${align}" vertical="BASELINE"/><hh:heading type="NONE" idRef="0" level="0"/>` +
+      `<hh:breakSetting breakLatinWord="KEEP_WORD" breakNonLatinWord="BREAK_WORD" widowOrphan="0" keepWithNext="0" keepLines="0" pageBreakBefore="0" lineWrap="BREAK"/>` +
+      `<hh:autoSpacing eAsianEng="0" eAsianNum="0"/>` +
+      `<hp:switch><hp:case hp:required-namespace="http://www.hancom.co.kr/hwpml/2016/HwpUnitChar">${m}</hp:case><hp:default>${m}</hp:default></hp:switch>` +
+      `<hh:border borderFillIDRef="${BF.charNone}" offsetLeft="0" offsetRight="0" offsetTop="0" offsetBottom="0" connect="0" ignoreMargin="0"/></hh:paraPr>`;
+  };
+  const line = (side, type, width = "0.12 mm", color = "#000000") => `<hh:${side} type="${type}" width="${width}" color="${color}"/>`;
+  const borderFill = ([, kind, fill], i) => {
+    let lines;
+    if (kind === "TB") lines = line("leftBorder", "NONE") + line("rightBorder", "NONE") + line("topBorder", "SOLID", "1.0 mm", "#1F33C9") + line("bottomBorder", "SOLID", "1.0 mm", "#1F33C9");
+    else ["leftBorder", "rightBorder", "topBorder", "bottomBorder"].forEach((s, j) => { lines = (j ? lines : "") + line(s, kind); });
+    const brush = fill ? `<hc:fillBrush><hc:winBrush faceColor="${fill}" hatchColor="#999999" alpha="0"/></hc:fillBrush>` : "";
+    return `<hh:borderFill id="${i + 1}" threeD="0" shadow="0" centerLine="NONE" breakCellSeparateLine="0"><hh:slash type="NONE" Crooked="0" isCounter="0"/><hh:backSlash type="NONE" Crooked="0" isCounter="0"/>${lines}<hh:diagonal type="SOLID" width="0.1 mm" color="#000000"/>${brush}</hh:borderFill>`;
+  };
+  const heads = [["DIGIT", "^1."], ["HANGUL_SYLLABLE", "^2."], ["DIGIT", "^3)"], ["HANGUL_SYLLABLE", "^4)"], ["DIGIT", "(^5)"], ["HANGUL_SYLLABLE", "(^6)"], ["CIRCLED_DIGIT", "^7"]]
+    .map(([f, t], i) => `<hh:paraHead start="1" level="${i + 1}" align="LEFT" useInstWidth="1" autoIndent="1" widthAdjust="0" textOffsetType="PERCENT" textOffset="50" numFormat="${f}" charPrIDRef="4294967295" checkable="${i === 6 ? 1 : 0}">${t}</hh:paraHead>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?><hh:head ${NS} version="1.5" secCnt="1">` +
+    `<hh:beginNum page="1" footnote="1" endnote="1" pic="1" tbl="1" equation="1"/><hh:refList>` +
+    `<hh:fontfaces itemCnt="7">${langs.map(fontface).join("")}</hh:fontfaces>` +
+    `<hh:borderFills itemCnt="${FILL.length}">${FILL.map(borderFill).join("")}</hh:borderFills>` +
+    `<hh:charProperties itemCnt="${CHAR.length}">${CHAR.map(charPr).join("")}</hh:charProperties>` +
+    `<hh:tabProperties itemCnt="3"><hh:tabPr id="0" autoTabLeft="0" autoTabRight="0"/><hh:tabPr id="1" autoTabLeft="1" autoTabRight="0"/><hh:tabPr id="2" autoTabLeft="0" autoTabRight="1"/></hh:tabProperties>` +
+    `<hh:numberings itemCnt="1"><hh:numbering id="1" start="0">${heads}</hh:numbering></hh:numberings>` +
+    `<hh:paraProperties itemCnt="${PARA.length}">${PARA.map(paraPr).join("")}</hh:paraProperties>` +
+    `<hh:styles itemCnt="1"><hh:style id="0" type="PARA" name="바탕글" engName="Normal" paraPrIDRef="0" charPrIDRef="0" nextStyleIDRef="0" langID="1042" lockForm="0"/></hh:styles>` +
+    `</hh:refList><hh:compatibleDocument targetProgram="HWP201X"><hh:layoutCompatibility/></hh:compatibleDocument>` +
+    `<hh:docOption><hh:linkinfo path="" pageInherit="0" footnoteInherit="0"/></hh:docOption><hh:metaTag>{"name":""}</hh:metaTag><hh:trackchageConfig flags="56"/></hh:head>`;
+}
+
+function secPrXml() {
+  const notes = (place, len) => `<hp:autoNumFormat type="DIGIT" userChar="" prefixChar="" suffixChar=")" supscript="0"/><hp:noteLine length="${len}" type="SOLID" width="0.12 mm" color="#000000"/><hp:noteSpacing betweenNotes="283" belowLine="567" aboveLine="850"/><hp:numbering type="CONTINUOUS" newNum="1"/><hp:placement place="${place}" beneathText="0"/>`;
+  const pbf = (type) => `<hp:pageBorderFill type="${type}" borderFillIDRef="${BF.page}" textBorder="PAPER" headerInside="0" footerInside="0" fillArea="PAPER"><hp:offset left="1417" right="1417" top="1417" bottom="1417"/></hp:pageBorderFill>`;
+  return `<hp:secPr id="" textDirection="HORIZONTAL" spaceColumns="1134" tabStop="8000" tabStopVal="4000" tabStopUnit="HWPUNIT" outlineShapeIDRef="1" memoShapeIDRef="0" textVerticalWidthHead="0" masterPageCnt="0">` +
+    `<hp:grid lineGrid="0" charGrid="0" wonggojiFormat="0"/><hp:startNum pageStartsOn="BOTH" page="0" pic="0" tbl="0" equation="0"/>` +
+    `<hp:visibility hideFirstHeader="0" hideFirstFooter="0" hideFirstMasterPage="0" border="SHOW_ALL" fill="SHOW_ALL" hideFirstPageNum="0" hideFirstEmptyLine="0" showLineNumber="0"/>` +
+    `<hp:lineNumberShape restartType="0" countBy="0" distance="0" startNumber="0"/>` +
+    `<hp:pagePr landscape="WIDELY" width="${PAGE.w}" height="${PAGE.h}" gutterType="LEFT_ONLY"><hp:margin header="${PAGE.hd}" footer="${PAGE.ft}" gutter="0" left="${PAGE.ml}" right="${PAGE.mr}" top="${PAGE.mt}" bottom="${PAGE.mb}"/></hp:pagePr>` +
+    `<hp:footNotePr>${notes("EACH_COLUMN", -1)}</hp:footNotePr><hp:endNotePr>${notes("END_OF_DOCUMENT", 14692344)}</hp:endNotePr>` +
+    pbf("BOTH") + pbf("EVEN") + pbf("ODD") + `</hp:secPr>`;
+}
+
+const cellStyle = (cl) => cl.cs || (cl.bf === "label" || cl.bf === "head" ? "cellB" : "cell");
+// 칸 높이 어림(한글이 열 때 내용에 맞게 다시 늘린다)
+function textUnits(s, h) { let u = 0; for (const ch of s) u += ch.charCodeAt(0) < 0x2000 ? .55 : 1; return u * h; }
+function estLines(text, width, h) { return Math.max(1, Math.ceil(textUnits(text, h) / Math.max(1000, width))); }
+
+function buildSection() {
+  let id = 1000;
+  const nid = () => ++id;
+  const out = [];
+  let first = true, pendingBreak = false;
+  const firstRun = () => {
+    if (!first) return "";
+    first = false;
+    return `<hp:run charPrIDRef="0">${secPrXml()}<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="1" sameSz="1" sameGap="0"/></hp:ctrl></hp:run>`;
+  };
+  const pOpen = (ps) => { const pb = pendingBreak ? 1 : 0; pendingBreak = false; return `<hp:p id="${nid()}" paraPrIDRef="${PS[ps]}" styleIDRef="0" pageBreak="${pb}" columnBreak="0" merged="0">`; };
+  const run = (text, cs) => `<hp:run charPrIDRef="${CS[cs]}">${text ? `<hp:t>${xesc(text)}</hp:t>` : "<hp:t/>"}</hp:run>`;
+
+  function tableXml(b) {
+    const totalW = b.abs ? b.widths.reduce((s, x) => s + x, 0) : BODY_W;
+    const sum = b.widths.reduce((s, x) => s + x, 0);
+    const W = b.widths.map(x => Math.floor(x / sum * totalW));
+    W[W.length - 1] += totalW - W.reduce((s, x) => s + x, 0);
+    const nCols = W.length, nRows = b.rows.length;
+    // 칸 배치(병합 고려)
+    const occ = Array.from({ length: nRows }, () => Array(nCols).fill(false));
+    const placed = [];
+    b.rows.forEach((row, r) => {
+      let c = 0;
+      for (const cl of row) {
+        while (c < nCols && occ[r][c]) c++;
+        const cs = cl.span || 1, rs = cl.rs || 1;
+        for (let rr = r; rr < Math.min(nRows, r + rs); rr++) for (let cc = c; cc < Math.min(nCols, c + cs); cc++) occ[rr][cc] = true;
+        placed.push({ cl, r, c, cs, rs, w: W.slice(c, c + cs).reduce((s, x) => s + x, 0) });
+        c += cs;
+      }
+    });
+    // 행 높이
+    const rowH = Array(nRows).fill(1500);
+    const need = (p) => {
+      const font = CHAR_H[cellStyle(p.cl)];
+      const ls = cellLines(p.cl);
+      const n = ls.reduce((s, x) => s + estLines((p.cl.bullet ? "∙ " : "") + x, p.w - 1100, font), 0);
+      return Math.max(p.cl.h || 0, Math.round(n * font * 1.45 + 560));
+    };
+    placed.filter(p => p.rs === 1).forEach(p => { rowH[p.r] = Math.max(rowH[p.r], need(p)); });
+    placed.filter(p => p.rs > 1).forEach(p => {
+      const have = rowH.slice(p.r, p.r + p.rs).reduce((s, x) => s + x, 0), want = need(p);
+      if (want > have) rowH[p.r + p.rs - 1] += want - have;
+    });
+    const cellXml = (p) => {
+      const cl = p.cl, ls = cellLines(cl);
+      const cs = cellStyle(cl);
+      const ps = cl.align === "center" ? "cellC" : (cl.bullet ? "cellBullet" : "cell");
+      const paras = ls.map(x => `${pOpenPlain(ps)}${run(cl.bullet ? `∙ ${x}` : x, cs)}</hp:p>`).join("");
+      const h = rowH.slice(p.r, p.r + p.rs).reduce((s, x) => s + x, 0);
+      return `<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="1" borderFillIDRef="${BF[cl.bf || "grid"]}">` +
+        `<hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${paras}</hp:subList>` +
+        `<hp:cellAddr colAddr="${p.c}" rowAddr="${p.r}"/><hp:cellSpan colSpan="${p.cs}" rowSpan="${p.rs}"/><hp:cellSz width="${p.w}" height="${h}"/>` +
+        `<hp:cellMargin left="510" right="510" top="141" bottom="141"/></hp:tc>`;
+    };
+    let rowsXml = "";
+    for (let r = 0; r < nRows; r++) rowsXml += `<hp:tr>${placed.filter(p => p.r === r).map(cellXml).join("")}</hp:tr>`;
+    const totalH = rowH.reduce((s, x) => s + x, 0);
+    return `<hp:tbl id="${nid()}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${nRows}" colCnt="${nCols}" cellSpacing="0" borderFillIDRef="${BF[b.bf === "none" ? "none" : "grid"]}" noAdjust="0">` +
+      `<hp:sz width="${totalW}" widthRelTo="ABSOLUTE" height="${totalH}" heightRelTo="ABSOLUTE" protect="0"/>` +
+      `<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>` +
+      `<hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>${rowsXml}</hp:tbl>`;
+  }
+  const pOpenPlain = (ps) => `<hp:p id="${nid()}" paraPrIDRef="${PS[ps]}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">`;
+
+  for (const b of buildDoc()) {
+    if (b.t === "pb") { pendingBreak = true; continue; }
+    if (b.t === "p") { out.push(pOpen(b.ps) + firstRun() + b.runs.map(r => run(r.text.trim() ? r.text : "", r.cs)).join("") + "</hp:p>"); continue; }
+    if (b.t === "tbl") out.push(pOpen(b.ps) + firstRun() + `<hp:run charPrIDRef="0">${tableXml(b)}<hp:t/></hp:run></hp:p>`);
+  }
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?><hs:sec ${NS}>${out.join("")}</hs:sec>`;
+}
+
+function docPlainText() {
+  const parts = [];
+  for (const b of buildDoc()) {
+    if (b.t === "p") parts.push(b.runs.map(r => r.text).join(""));
+    if (b.t === "tbl") for (const row of b.rows) parts.push(row.map(c => cellLines(c).map(x => (c.bullet && x ? "∙ " + x : x)).join(" ")).filter(x => x.trim()).join(" | "));
+    if (b.t === "pb") parts.push("");
+  }
+  return parts.join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+async function buildHwpx() {
+  if (typeof JSZip === "undefined") throw new Error("압축 도구(JSZip)를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.");
+  const title = `${state.school.year || "2026"}학년도 학교평가 보고서`;
+  const zip = new JSZip();
+  zip.file("mimetype", "application/hwp+zip", { compression: "STORE" });
+  zip.file("version.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?><hv:HCFVersion xmlns:hv="http://www.hancom.co.kr/hwpml/2011/version" tagetApplication="WORDPROCESSOR" major="5" minor="1" micro="1" buildNumber="0" os="1" xmlVersion="1.5" application="Hancom Office Hangul" appVersion="13, 0, 0, 1408 WIN32LEWindows_10"/>`);
+  zip.file("META-INF/container.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?><ocf:container xmlns:ocf="urn:oasis:names:tc:opendocument:xmlns:container" xmlns:hpf="http://www.hancom.co.kr/schema/2011/hpf"><ocf:rootfiles><ocf:rootfile full-path="Contents/content.hpf" media-type="application/hwpml-package+xml"/><ocf:rootfile full-path="Preview/PrvText.txt" media-type="text/plain"/><ocf:rootfile full-path="META-INF/container.rdf" media-type="application/rdf+xml"/></ocf:rootfiles></ocf:container>`);
+  zip.file("META-INF/container.rdf", `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about=""><ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#" rdf:resource="Contents/header.xml"/></rdf:Description><rdf:Description rdf:about="Contents/header.xml"><rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#HeaderFile"/></rdf:Description><rdf:Description rdf:about=""><ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#" rdf:resource="Contents/section0.xml"/></rdf:Description><rdf:Description rdf:about="Contents/section0.xml"><rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#SectionFile"/></rdf:Description><rdf:Description rdf:about=""><rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#Document"/></rdf:Description></rdf:RDF>`);
+  zip.file("META-INF/manifest.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?><odf:manifest xmlns:odf="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"/>`);
+  zip.file("Contents/content.hpf", `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?><opf:package ${NS} version="" unique-identifier="" id=""><opf:metadata><opf:title>${xesc(title)}</opf:title><opf:language>ko</opf:language><opf:meta name="creator" content="text">${xesc(state.school.name)}</opf:meta></opf:metadata><opf:manifest><opf:item id="header" href="Contents/header.xml" media-type="application/xml"/><opf:item id="section0" href="Contents/section0.xml" media-type="application/xml"/><opf:item id="settings" href="settings.xml" media-type="application/xml"/></opf:manifest><opf:spine><opf:itemref idref="header" linear="yes"/><opf:itemref idref="section0" linear="yes"/></opf:spine></opf:package>`);
+  zip.file("Contents/header.xml", headerXml());
+  zip.file("Contents/section0.xml", buildSection());
+  zip.file("settings.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?><ha:HWPApplicationSetting xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"><ha:CaretPosition listIDRef="0" paraIDRef="0" pos="0"/></ha:HWPApplicationSetting>`);
+  zip.file("Preview/PrvText.txt", docPlainText().replace(/\n/g, "\r\n").slice(0, 2000));
+  return zip.generateAsync({ type: "blob", mimeType: "application/hwp+zip", compression: "DEFLATE" });
+}
+
+function saveBlob(blob, filename) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+// ============================================================
+//  7. Gemini 호출
+// ============================================================
+const SYSTEM_PROMPT = `당신은 경기도 초등학교의 학교평가 업무 담당 교사를 돕는 보고서 작성 도우미입니다.
+담당 교사가 준 메모와 지표 정보를 바탕으로 「학교평가 보고서」의 '평가 결과' 부분 문장을 씁니다.
+[문체] 공문서 개조식. 한 항목은 한 문장(40~90자). 끝맺음은 '~함', '~임', '~하였음', '~할 예정임' 같은 명사형 종결. '~합니다', '~했다' 금지.
+[기호] 항목 앞에 •, ∙, -, 숫자 같은 기호를 붙이지 않음(보고서가 자동으로 붙임).
+[사실] 메모와 정량 결과에 있는 사실·수치만 근거로 씀. 메모에 없는 수치, 날짜, 행사·프로그램 이름, 설문 결과를 절대 지어내지 않음. 꼭 필요한 자리는 '○○', '○회', '○%'처럼 빈칸으로 남겨 담당자가 채우게 함.
+[흐름] 평가 주안점에 답하듯 계획 → 운영 → 성과분석·환류가 이어지게 쓰고, 개선점은 다음 학년도 반영사항과 연결함.
+[출력] 요청한 키만 가진 JSON 객체 하나만 출력. 값은 문자열 배열이며 future만 문자열.`;
+
+async function callGemini(prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+  const payload = {
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    generationConfig: { responseMimeType: "application/json", maxOutputTokens: 8000, temperature: 0.6 },
+  };
+  // 사용자가 몰릴 때(429), 서버 오류(5xx), 연결 끊김은 잠깐 기다렸다 다시 시도
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    } catch (e) {
+      if (attempt >= 4) throw new Error("인터넷 연결을 확인해 주세요.");
+      await sleep(1000 * 2 ** attempt); continue;
+    }
+    if (res.ok) {
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("");
+      if (text) return text;
+      throw new Error("AI 응답이 비어 있어요. 다시 시도해 주세요.");
+    }
+    if (!(res.status === 429 || res.status >= 500) || attempt >= 4) throw new Error(`AI 호출 실패(${res.status}). 잠시 후 다시 시도해 주세요.`);
+    await sleep(1000 * 2 ** attempt);
+  }
+}
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+function parseJson(text) {
+  const t = String(text).replace(/```(?:json)?/g, "").trim();
+  try { return JSON.parse(t); } catch (e) {}
+  const a = t.indexOf("{"), b = t.lastIndexOf("}");
+  if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} }
+  throw new Error("AI 답을 읽지 못했어요. 다시 눌러 주세요.");
+}
+
+function indicatorContext(d) {
+  const st = S(d.id), s = state.school;
+  const L2 = [];
+  L2.push(`[학교] ${s.name || "○○초등학교"} (${s.year || "2026"}학년도)${s.classes ? `, 학급 ${s.classes}` : ""}${s.students ? `, 학생 ${s.students}명` : ""}`);
+  if (s.vision) L2.push(`[학교 비전·교육 목표] ${s.vision.replace(/\n/g, " / ")}`);
+  L2.push(`[평가 지표] ${d.id}. ${d.title} (${d.pts}점, ${d.method})`);
+  L2.push(`[평가 목적] ${d.purpose.join(" / ")}`);
+  if (d.quant) {
+    L2.push("[정량평가 결과]");
+    d.quant.items.forEach(it => {
+      const r = evalQuant(it, st.q);
+      L2.push(`- ${it.label}(${it.max}점): ${r.done ? `${r.value}${r.detail ? ` (${r.detail})` : ""} → ${r.grade}${r.range ? `(${r.range})` : ""}, ${fmt(r.score)}점` : "아직 입력 안 됨"}`);
+    });
+  }
+  if (d.qual) {
+    L2.push(`[정성평가: ${d.qual.title} — 평가 주안점과 담당자 자체 판단]`);
+    d.qual.elements.forEach((e, i) => {
+      const r = evalElem({ ...e, gk: String(i) }, st);
+      L2.push(`- ${e.name}(${e.max}점)${r.done ? ` [자체 판단: ${r.grade}]` : ""}: ${e.points.join(" / ")}`);
+    });
+  }
+  if (d.groups) {
+    L2.push("[정성평가: 학생·교직원·학부모 의견 수렴 및 환류 — 평가 주안점]");
+    d.groups.forEach(g => L2.push(`- ${g.name}: ${g.points.join(" / ")}`));
+  }
+  if (d.budget) {
+    const q = st.q;
+    L2.push(`[학교자율과제 예산] 표준교육비 총액 ${q.b_std || "?"}천원, 편성 ${q.b_plan || "?"}천원, 집행 ${q.b_used || "?"}천원`);
+  }
+  L2.push("[담당 교사 메모]");
+  L2.push(st.memo.trim() || "(메모 없음 — 일반적인 초등학교 운영 수준으로 쓰되, 구체적인 수치·행사명·결과는 모두 ○○로 비워 둘 것)");
+  return L2.join("\n");
+}
+
+function keySpec(d) {
+  return fieldsOf(d).map(f => `"${f.key}": ${f.key === "future" ? "문자열(1~2문장)" : `문자열 배열(${f.n}개)`} — ${f.label}${f.hint ? ` (${f.hint})` : ""}`).join("\n");
+}
+
+function applyResult(d, obj) {
+  const st = S(d.id);
+  st.prev = { ...st.out };
+  for (const f of fieldsOf(d)) {
+    const v = obj[f.key];
+    if (v === undefined || v === null) continue;
+    st.out[f.key] = Array.isArray(v) ? v.map(x => String(x).replace(/^\s*(?:[∙•·\-*]|\d+[.)])\s*/, "").trim()).filter(Boolean).join("\n") : String(v).trim();
+  }
+}
+
+async function aiWrite(id, instruction) {
+  const d = IND[id], st = S(id);
+  let prompt = indicatorContext(d) + "\n\n";
+  if (instruction) {
+    const cur = Object.fromEntries(fieldsOf(d).map(f => [f.key, f.key === "future" ? (st.out[f.key] || "") : lines(st.out[f.key])]));
+    prompt += `[현재 내용]\n${JSON.stringify(cur, null, 1)}\n\n[수정 요청] ${instruction}\n\n수정 요청대로 고쳐 쓰고, 요청하지 않은 부분은 최대한 그대로 두세요. 아래 키를 모두 가진 JSON으로 출력하세요.\n${keySpec(d)}`;
+  } else {
+    prompt += `위 내용으로 이 지표의 보고서 문장을 쓰세요. 아래 키를 모두 가진 JSON으로 출력하세요.\n${keySpec(d)}`;
+  }
+  const obj = parseJson(await callGemini(prompt));
+  applyResult(d, obj);
+}
+
+// ============================================================
+//  8. 화면 (입력 폼)
+// ============================================================
+const $ = (sel) => document.querySelector(sel);
+const busy = new Set();
+
+function renderTabs() {
+  const t = [`<button class="tab ${state.tab === "school" ? "on" : ""}" data-tab="school">🏫 학교 현황</button>`];
+  for (const d of INDICATORS) {
+    const s = indStatus(d);
+    t.push(`<button class="tab ${state.tab === d.id ? "on" : ""}" data-tab="${d.id}" title="${esc(d.title)}"><span class="dot ${s}"></span>${d.id}</button>`);
+  }
+  $("#tabs").innerHTML = t.join("");
+}
+
+const inp = (bind, val, ph = "", type = "text") => `<input type="${type}" data-bind="${bind}" value="${esc(val)}" placeholder="${esc(ph)}">`;
+const area = (bind, val, ph = "", rows = 3) => `<textarea data-bind="${bind}" rows="${rows}" placeholder="${esc(ph)}">${esc(val)}</textarea>`;
+
+function renderSchool() {
+  const s = state.school;
+  return `
+  <div class="card">
+    <h3>🏫 학교 기본현황</h3>
+    <div class="grid2">
+      <div class="field"><label>학교명</label>${inp("school.name", s.name, "예) ○○초등학교")}</div>
+      <div class="field"><label>학년도</label>${inp("school.year", s.year, "2026")}</div>
+    </div>
+    <div class="field"><label>표지 위 문구(교훈·슬로건)</label>${inp("school.slogan", s.slogan, "예) 꿈 도전 어울림")}</div>
+    <div class="grid2">
+      <div class="field"><label>학교장</label>${inp("school.principal", s.principal)}</div>
+      <div class="field"><label>교감</label>${inp("school.vice", s.vice)}</div>
+    </div>
+    <div class="field"><label>주소</label>${inp("school.address", s.address)}</div>
+    <div class="grid2">
+      <div class="field"><label>학급수</label>${inp("school.classes", s.classes, "예) 18학급(특수 1)")}</div>
+      <div class="field"><label>총 학생수</label>${inp("school.students", s.students, "예) 412")}</div>
+    </div>
+    <div class="field"><label>학생현황(12. 31. 기준)</label>${area("school.studentInfo", s.studentInfo, "예) 1학년 68명, 2학년 70명 … (12월 중 입력 예정이면 비워 두세요)", 2)}</div>
+  </div>
+  <div class="card">
+    <h3>🎯 학교 비전 및 교육 목표</h3>
+    ${area("school.vision", s.vision, "한 줄에 하나씩 적어 주세요.\n예) 비전: 함께 꿈꾸고 스스로 성장하는 행복한 학교\n교육 목표: 바른 인성을 갖춘 어린이, 스스로 탐구하는 어린이", 4)}
+    <p class="hint">AI가 지표별 문장을 쓸 때 이 비전과 목표를 함께 참고해요.</p>
+  </div>
+  <div class="card">
+    <h3>⚙️ 보고서 설정</h3>
+    <label class="row" style="font-weight:500;cursor:pointer"><input type="checkbox" data-bind="opts.scales" ${state.opts.scales ? "checked" : ""} style="width:18px;min-height:18px"> 지표마다 '평가 척도'(배점·주안점 표) 넣기</label>
+    <p class="hint">보고서 틀(예시)처럼 척도 표를 함께 넣어요. 분량을 줄이려면 끄세요.</p>
+  </div>
+  <div class="card ai-box">
+    <h3>📝 사용 순서</h3>
+    <ol style="margin:0;padding-left:20px;font-size:14px">
+      <li>위쪽 탭에서 지표(1-1 ~ 5-3)를 하나씩 열어 <b>정량 실적</b>과 <b>자체 판단 등급</b>을 고르고, <b>올해 한 일 메모</b>를 적어요.</li>
+      <li>지표마다 <b>✨ AI로 쓰기</b>를 누르거나, 맨 위 <b>빈 지표 AI로 모두 쓰기</b>를 눌러요.</li>
+      <li>칸 안의 글을 직접 고치거나, "고칠 점"을 적어 <b>다시 쓰기</b>를 해요.</li>
+      <li><b>한글(.hwpx) 저장</b>으로 내려받아 한글에서 열어 마무리해요.</li>
+    </ol>
+    <p class="hint" style="margin-top:8px">AI는 메모에 없는 수치·행사명을 지어내지 않고 ○○로 비워 둬요. 저장 전에 꼭 확인해 주세요. 입력 내용은 이 기기에만 저장돼요.</p>
+  </div>`;
+}
+
+function renderQuantItem(d, it) {
+  const st = S(d.id), q = st.q, k = it.key, b = (x) => `q:${d.id}:${x}`;
+  let body = "";
+  if (it.type === "select") {
+    body = `<select data-bind="${b(k)}"><option value="">선택하세요</option>${it.options.map((o, i) => `<option value="${i}" ${String(q[k]) === String(i) ? "selected" : ""}>${esc(o[0])} (${fmt(o[1])}점)</option>`).join("")}</select>`;
+  } else if (it.type === "rate") {
+    body = `<div class="grid2"><div class="field"><label class="hint">${esc(it.a)}</label>${inp(b(k + "_a"), q[k + "_a"] ?? "", "숫자", "text")}</div><div class="field"><label class="hint">${esc(it.b)}</label>${inp(b(k + "_b"), q[k + "_b"] ?? "", "숫자", "text")}</div></div>`;
+  } else if (it.type === "checks" || it.type === "count") {
+    const items = it.type === "checks" ? it.items.map(x => `${x[0]} (${fmt(x[1])}점)`) : it.items;
+    body = `<div class="checks">${items.map((x, i) => `<label><input type="checkbox" data-bind="${b(`${k}_${i}`)}" ${q[`${k}_${i}`] ? "checked" : ""}>${esc(x)}</label>`).join("")}</div>`;
+  } else if (it.type === "facility") {
+    body = `<div class="grid2"><div class="field"><label class="hint">운동장 개방 가능 일수</label>${inp(b(k + "_g"), q[k + "_g"] ?? "", "예) 120")}</div><div class="field"><label class="hint">체육관 개방 가능 일수</label>${inp(b(k + "_y"), q[k + "_y"] ?? "", "예) 80")}</div></div>`;
+  }
+  return `<div class="qitem"><div class="qt">${esc(it.label)} <span class="hint">(${fmt(it.max)}점)</span></div>${it.hint ? `<p class="hint" style="margin:0 0 6px">※ ${esc(it.hint)}</p>` : ""}${body}<div class="calc" data-calc="${d.id}:${k}"></div></div>`;
+}
+
+function gradeSelect(d, gk, e) {
+  const v = S(d.id).g[gk];
+  return `<select data-bind="g:${d.id}:${gk}"><option value="">자체 판단</option>${e.scores.map((sc, i) => `<option value="${i}" ${String(v) === String(i) ? "selected" : ""}>${G5[i]} (${fmt(sc)})</option>`).join("")}</select>`;
+}
+
+function renderIndicator(d) {
+  const st = S(d.id), sc = indScore(d), ar = AREAS[d.area - 1];
+  let h = `<div class="ind-head"><div class="code">${ar.no}. ${esc(ar.name)}</div><div class="title">${d.id}. ${esc(d.title)}</div>
+    <div class="meta"><span>배점 ${d.pts}점</span><span>${esc(d.method)}</span><span data-calc="${d.id}:total">예상 ${sc.done ? fmt(sc.score) : "-"} / ${d.pts}점</span></div>
+    <details><summary>평가 목적 보기</summary><ul style="margin:6px 0 0;padding-left:18px">${d.purpose.map(p => `<li>${esc(p)}</li>`).join("")}</ul></details></div>`;
+
+  if (d.quant) h += `<div class="card"><h3>📊 정량 실적 입력 <span class="badge">${d.quant.max}점</span></h3>${d.quant.items.map(it => renderQuantItem(d, it)).join("")}</div>`;
+  if (d.qual) {
+    h += `<div class="card"><h3>✅ 정성 · ${esc(d.qual.title)} <span class="badge">${d.qual.max}점</span></h3>
+      <p class="hint" style="margin:0 0 8px">주안점을 보며 스스로 등급을 골라 두면 예상 점수가 계산되고, AI가 글을 쓸 때 참고해요.</p>
+      ${d.qual.elements.map((e, i) => `<div class="elem"><div class="elem-top"><b>${esc(e.name)} (${fmt(e.max)}점)</b>${gradeSelect(d, String(i), e)}</div><ul>${e.points.map(p => `<li>${esc(p)}</li>`).join("")}</ul></div>`).join("")}
+      ${d.qual.approx ? `<p class="hint">※ 이 지표는 안내서에 등급별 점수가 없어 배점 비율로 환산한 참고 점수예요.</p>` : ""}</div>`;
+  }
+  if (d.groups) {
+    h += `<div class="card"><h3>✅ 정성 · 의견 수렴 및 환류 <span class="badge">15점</span></h3>
+      ${d.groups.map(g => `<div class="group-title">${g.name} (5점)</div><ul style="margin:0 0 6px;padding-left:18px;font-size:13px;color:#4a5162">${g.points.map(p => `<li>${esc(p)}</li>`).join("")}</ul>
+        ${d.groupElements.map((e, i) => `<div class="elem-top"><b style="font-weight:500">${esc(e.name)} (${fmt(e.max)}점)</b>${gradeSelect(d, `${g.key}${i}`, e)}</div>`).join("")}`).join("")}</div>`;
+  }
+  if (d.budget) {
+    h += `<div class="card"><h3>💰 학교자율과제 예산</h3><div class="grid2">
+      <div class="field"><label class="hint">규모별 표준교육비 총액(천원)</label>${inp(`q:${d.id}:b_std`, st.q.b_std ?? "")}</div>
+      <div class="field"><label class="hint">학교자율과제 편성 예산(천원)</label>${inp(`q:${d.id}:b_plan`, st.q.b_plan ?? "")}</div>
+      <div class="field"><label class="hint">학교자율과제 집행 예산(천원)</label>${inp(`q:${d.id}:b_used`, st.q.b_used ?? "")}</div>
+      <div class="field"><label class="hint">계산</label><div class="calc" data-calc="${d.id}:budget"></div></div></div>
+      <p class="hint">편성률 5% 이상, 집행률 95% 이상 권장</p></div>`;
+  }
+
+  const isBusy = busy.has(d.id);
+  h += `<div class="card ai-box"><h3>🗒️ 올해 한 일 메모</h3>
+    ${area(`memo:${d.id}`, st.memo, memoHint(d), 6)}
+    <p class="hint">시기·대상·횟수, 눈에 띈 성과, 아쉬운 점, 내년에 바꿀 점을 짧게 적을수록 정확해져요. 문장으로 안 써도 돼요.</p>
+    <div class="row" style="margin-top:8px"><button data-act="ai-one" data-id="${d.id}" ${isBusy ? "disabled" : ""}>${isBusy ? "✍️ 쓰는 중…" : "✨ AI로 이 지표 쓰기"}</button>
+    ${st.prev ? `<button class="ghost small" data-act="undo" data-id="${d.id}">↩ 이전 글로 되돌리기</button>` : ""}</div></div>`;
+
+  h += `<div class="card"><h3>📄 보고서에 들어갈 글 <span class="hint" style="font-weight:400">(한 줄 = 항목 하나)</span></h3>
+    ${fieldsOf(d).map(f => `<div class="field out-field"><label>${esc(f.label)}</label>${area(`out:${d.id}:${f.key}`, st.out[f.key] || "", f.key === "future" ? "예) 학년 협의 중심의 교육과정 재구성을 확대하고 …" : "", f.key === "future" ? 2 : 4)}</div>`).join("")}
+    <div class="row" style="margin-top:6px"><input id="revise-${d.id}" placeholder="고칠 점 (예: 더 짧게, 우수사례를 구체적으로, 숫자 강조)"><button class="soft" data-act="revise" data-id="${d.id}" ${isBusy ? "disabled" : ""}>🔁 다시 쓰기</button></div></div>`;
+  return h;
+}
+
+function memoHint(d) {
+  const ex = {
+    "1-1": "예) 3·4학년 학교자율시간 '우리 마을 탐구' 운영, 학년별 교육과정 재구성 협의 월 1회, 논술형 평가 학기당 2회 + 피드백, 수업나눔 주간 5월·10월 …",
+    "1-2": "예) 3월 진단평가로 학습지원대상 ○명 선정, 두드림팀 협의 ○회, 방과후 맞춤 지도(국어·수학), 학년말 ○명 중 ○명 도달, 예산 집행 ○% …",
+    "1-4": "예) 교육활동 보호 안내장 3월 발송, 민원면담실 지정, 비상벨 설치, 상호존중 약속 선포식(4월) …",
+    "5-3": "예) 11월 학생·교직원·학부모 설문(문항 자체 구성), 학생: 체험활동 만족 높음·독서 시간 부족 의견, 교직원: 업무 경감 요구, 학부모: 소통 창구 확대 요구 …",
+  };
+  return ex[d.id] || "예) 운영 시기와 대상, 주요 활동, 참여 인원·횟수, 성과(수치), 아쉬운 점, 내년 개선 방향 …";
+}
+
+function renderForm() {
+  $("#form").innerHTML = state.tab === "school" ? renderSchool() : renderIndicator(IND[state.tab]);
+  updateCalcs();
+}
+
+function updateCalcs() {
+  document.querySelectorAll("[data-calc]").forEach(el => {
+    const [id, key] = el.dataset.calc.split(":"); const d = IND[id];
+    if (!d) return;
+    if (key === "total") { const sc = indScore(d); el.textContent = `예상 ${sc.done ? fmt(sc.score) : "-"} / ${d.pts}점`; return; }
+    if (key === "budget") {
+      const q = S(id).q, A = num(q.b_std), P2 = num(q.b_plan), U = num(q.b_used);
+      const t = [A && P2 !== null ? `편성률 ${r2(P2 / A * 100)}%` : "", P2 && U !== null ? `집행률 ${r2(U / P2 * 100)}%` : ""].filter(Boolean).join(" · ");
+      el.textContent = t || "금액을 넣으면 계산돼요"; el.classList.toggle("empty", !t); return;
+    }
+    const it = d.quant.items.find(x => x.key === key);
+    const r = evalQuant(it, S(id).q);
+    el.textContent = r.done ? `→ ${r.value} · ${r.grade}${r.range && r.range !== r.grade ? ` (${r.range})` : ""} · ${fmt(r.score)}점` : "값을 넣으면 등급과 점수가 계산돼요";
+    el.classList.toggle("empty", !r.done);
+  });
+}
+
+function setBind(bind, value) {
+  if (bind.startsWith("school.")) state.school[bind.slice(7)] = value;
+  else if (bind.startsWith("opts.")) state.opts[bind.slice(5)] = value;
+  else {
+    const [kind, id, key] = bind.split(":");
+    const st = S(id);
+    if (kind === "q") st.q[key] = value;
+    else if (kind === "g") st.g[key] = value;
+    else if (kind === "memo") st.memo = value;
+    else if (kind === "out") st.out[key] = value;
+  }
+}
+
+// ---------- 공용 UI ----------
+function toast(msg, ms = 2200) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), ms);
+}
+function confirmModal(msg, yes = "확인") {
+  return new Promise(resolve => {
+    $("#modal-msg").textContent = msg; $("#modal-yes").textContent = yes;
+    $("#modal").classList.add("show");
+    const done = (v) => { $("#modal").classList.remove("show"); resolve(v); };
+    $("#modal-yes").onclick = () => done(true);
+    $("#modal-no").onclick = () => done(false);
+  });
+}
+function setStatus(msg, isErr = false) { const s = $("#status"); s.textContent = msg || ""; s.classList.toggle("err", isErr); }
+function setProgress(done, total) { $("#progress .bar").style.width = total ? `${Math.round(done / total * 100)}%` : "0"; }
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch (_) {}
+    ta.remove(); return ok;
+  }
+}
+
+function refreshAll() { renderTabs(); renderForm(); renderPreview(); save(); }
+
+// ---------- AI 실행 ----------
+async function runOne(id, instruction) {
+  if (busy.has(id)) return;
+  busy.add(id); if (state.tab === id) renderForm();
+  setStatus(`${id} 지표를 쓰는 중…`);
+  try {
+    await aiWrite(id, instruction);
+    setStatus(`${id} 지표를 썼어요. ○○ 표시는 직접 채워 주세요.`);
+  } catch (e) {
+    setStatus(`${id}: ${e.message}`, true);
+  } finally {
+    busy.delete(id);
+    renderTabs(); if (state.tab === id) renderForm(); renderPreview(); save();
+  }
+}
+
+async function runAll() {
+  const targets = INDICATORS.filter(d => fieldsOf(d).every(f => !(S(d.id).out[f.key] || "").trim()));
+  if (!targets.length) { toast("빈 지표가 없어요. 지표별로 '다시 쓰기'를 이용하세요."); return; }
+  const noMemo = targets.filter(d => !S(d.id).memo.trim()).length;
+  if (noMemo && !(await confirmModal(`${targets.length}개 지표를 AI로 씁니다.\n그중 ${noMemo}개는 메모가 없어 ○○가 많은 초안이 돼요. 계속할까요?`, "쓰기 시작"))) return;
+  let done = 0, failed = 0, next = 0;
+  setProgress(0, targets.length);
+  const worker = async () => {
+    while (next < targets.length) {
+      const d = targets[next++];
+      busy.add(d.id);
+      setStatus(`AI가 보고서를 쓰는 중… ${done}/${targets.length}`);
+      try { await aiWrite(d.id); } catch (e) { failed++; }
+      busy.delete(d.id); done++;
+      setProgress(done, targets.length);
+      renderTabs(); renderPreview(); save();
+      if (state.tab === d.id) renderForm();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(3, targets.length) }, worker));
+  setProgress(0, 0);
+  setStatus(failed ? `${targets.length - failed}개 완료, ${failed}개는 실패했어요. 해당 지표에서 다시 눌러 주세요.` : `${targets.length}개 지표를 모두 썼어요. ○○ 표시를 채우고 한글로 저장하세요.`, !!failed);
+}
+
+// ---------- 예시 ----------
+function loadSample() {
+  state = defaultState();
+  Object.assign(state.school, {
+    name: "○○초등학교", slogan: "꿈 · 도전 · 어울림", year: "2026", principal: "김○○", vice: "이○○",
+    address: "경기도 ○○시 ○○로 123", classes: "18학급", students: "412",
+    vision: "비전: 함께 꿈꾸고 스스로 성장하는 행복한 배움터\n교육 목표: 바른 인성을 갖춘 어린이, 스스로 탐구하는 어린이, 함께 어울리는 어린이",
+  });
+  const set = (id, o) => Object.assign(S(id), o);
+  set("1-1", { q: { q1: "0", q2_a: "28", q2_b: "24", q3: "0" }, g: { 0: "1", 1: "0", 2: "1" },
+    memo: "3·4학년 학교자율시간 '우리 고장 탐험대' 운영(주 1시간). 학년별 교육과정 재구성 협의 월 1회. 학기별 논술형 평가 2회 + 개별 피드백. 5월·10월 수업나눔 주간에 전 교원 공개수업. 학년 말 교육과정 평가회에서 체험 중심 수업 만족 높음, 평가 결과 활용은 부족하다는 의견." });
+  set("1-2", { g: { 0: "1", 1: "1", 2: "1" },
+    memo: "3월 진단평가와 교사 관찰로 학습지원대상 14명 선정. 두드림팀 협의 학기별 2회. 방과후 국어·수학 맞춤 지도 주 2회, 협력교사 수업 지원(1·2학년). 학년말 재진단에서 14명 중 10명 도달. 예산 집행 96%. 학부모 상담 연계가 약했음." });
+  set("3-2", { q: { q1_a: "28", q1_b: "26" }, memo: "전문적학습공동체(학년별) 연계 연수, 원격연수 이수 독려. 30시간 미달 2명은 휴직 복귀자." });
+  set("5-3", { g: { s0: "0", s1: "1", s2: "1", t0: "1", t1: "1", t2: "1", p0: "1", p1: "2", p2: "1" },
+    memo: "11월 학생(4~6학년)·교직원·학부모 설문 실시, 문항은 학교자율과제와 교육활동에 맞게 자체 구성. 학생: 체험활동 만족 높음, 쉬는 시간·독서 시간 부족 의견. 교직원: 업무 경감과 협의 시간 확보 요구. 학부모: 학교 소식 안내 만족, 상담 시간 선택 폭 확대 요구." });
+  state.tab = "1-1";
+  refreshAll();
+  toast("예시 학교 내용을 불러왔어요. 지표에서 ✨ AI로 쓰기를 눌러 보세요.");
+}
+
+// ============================================================
+//  9. 이벤트
+// ============================================================
+document.addEventListener("input", (e) => {
+  const el = e.target.closest("[data-bind]");
+  if (!el) return;
+  const v = el.type === "checkbox" ? el.checked : el.value;
+  setBind(el.dataset.bind, v);
+  updateCalcs(); save(); schedulePreview();
+  if (el.dataset.bind.startsWith("memo:") || el.dataset.bind.startsWith("out:")) { clearTimeout(renderTabs._t); renderTabs._t = setTimeout(renderTabs, 600); }
+});
+document.addEventListener("change", (e) => {
+  const el = e.target.closest("[data-bind]");
+  if (el && (el.tagName === "SELECT" || el.type === "checkbox")) { setBind(el.dataset.bind, el.type === "checkbox" ? el.checked : el.value); updateCalcs(); renderPreview(); renderTabs(); save(); }
+});
+
+document.addEventListener("click", async (e) => {
+  if (!e.target.closest(".menu")) $("#menu").classList.remove("show");
+  const tab = e.target.closest("[data-tab]");
+  if (tab) { state.tab = tab.dataset.tab; renderTabs(); renderForm(); renderPreview(); save(); $("#form").scrollTop = 0; return; }
+  const sec = e.target.closest(".ind-sec");
+  if (sec) {
+    state.tab = sec.dataset.ind; renderTabs(); renderForm(); save();
+    document.querySelectorAll(".ind-sec").forEach(x => x.classList.toggle("sel", x.dataset.ind === state.tab));
+    if (document.body.classList.contains("show-preview")) { document.body.classList.remove("show-preview"); $("[data-act=switch]").textContent = "📄 미리보기"; }
+    $("#form").scrollTop = 0; return;
+  }
+  const btn = e.target.closest("[data-act]");
+  if (!btn) return;
+  const act = btn.dataset.act, id = btn.dataset.id;
+  if (act === "menu") { $("#menu").classList.toggle("show"); return; }
+  if (act === "switch") {
+    const on = document.body.classList.toggle("show-preview");
+    btn.textContent = on ? "✏️ 입력하기" : "📄 미리보기"; window.scrollTo(0, 0); return;
+  }
+  if (act === "ai-one") return runOne(id);
+  if (act === "revise") {
+    const v = ($(`#revise-${id}`)?.value || "").trim();
+    if (!v) return toast("고칠 점을 적어 주세요.");
+    return runOne(id, v);
+  }
+  if (act === "undo") {
+    const st = S(id); if (!st.prev) return;
+    const cur = st.out; st.out = st.prev; st.prev = cur;
+    refreshAll(); toast("이전 글로 되돌렸어요. 한 번 더 누르면 다시 바뀌어요.");
+    return;
+  }
+  if (act === "ai-all") return runAll();
+  if (act === "hwpx") {
+    btn.disabled = true;
+    try {
+      const blob = await buildHwpx();
+      const name = `${state.school.year || "2026"}학년도_학교평가_보고서_${state.school.name || "학교"}`.replace(/[\\/:*?"<>|\s]+/g, "_");
+      saveBlob(blob, `${name}.hwpx`);
+      toast("한글 파일을 내려받았어요. 한글(2018 이상)에서 열어 확인하세요.", 3200);
+    } catch (err) { setStatus("한글 파일을 만들지 못했어요: " + err.message, true); }
+    btn.disabled = false; return;
+  }
+  if (act === "copy") { const ok = await copyText(docPlainText()); toast(ok ? "보고서 글 전체를 복사했어요." : "복사가 막혔어요. 한글 파일 저장을 이용해 주세요."); return; }
+  if (act === "sample") {
+    const has = state.school.name || Object.values(state.ind).some(x => x.memo.trim() || Object.values(x.out).some(v => String(v).trim()) || Object.keys(x.q).length || Object.keys(x.g).length);
+    if (has && !(await confirmModal("지금 입력한 내용이 예시로 바뀝니다. 계속할까요?\n(필요하면 먼저 '작업 백업 파일 저장'을 하세요)"))) return;
+    return loadSample();
+  }
+  if (act === "backup") {
+    saveBlob(new Blob([JSON.stringify(state, null, 1)], { type: "application/json" }), `학교평가보고서_백업_${new Date().toISOString().slice(0, 10)}.json`);
+    toast("백업 파일을 저장했어요."); return;
+  }
+  if (act === "restore") { $("#file-restore").click(); return; }
+  if (act === "reset") {
+    if (!(await confirmModal("입력한 내용을 모두 지우고 처음부터 시작할까요?", "모두 지우기"))) return;
+    state = defaultState(); refreshAll(); toast("처음 상태로 돌아갔어요."); return;
+  }
+});
+
+$("#file-restore").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!data || !data.school || !data.ind) throw new Error();
+    state = Object.assign(defaultState(), data); refreshAll(); toast("백업을 불러왔어요.");
+  } catch (err) { toast("백업 파일을 읽지 못했어요."); }
+  e.target.value = "";
+});
+
+refreshAll();
+</script>
+</body>
+</html>
