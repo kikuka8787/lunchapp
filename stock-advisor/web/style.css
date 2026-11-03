@@ -204,3 +204,6 @@ h2 { font-size: 1.05rem; font-weight: 700; }
 .signal-head > div { flex: 1; min-width: 0; }
 .signal-head .action { white-space: nowrap; margin-left: 8px; }
 .signal-head .symbol { display: block; margin-left: 0; margin-top: 2px; }
+
+.debate-btn { margin-top: 8px; font-size: 0.8rem; padding: 6px 12px; }
+.debate-text { font-size: 0.8rem; }

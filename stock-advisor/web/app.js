@@ -7,6 +7,7 @@ import { buildBrief } from '../src/brief.js';
 import { SessionStore, diffSessions } from '../src/sessions.js';
 import { postmortem, buildReviewText } from '../src/review.js';
 import { TradeJournal, coach, buildCoachText } from '../src/journal.js';
+import { debate, buildDebateText } from '../src/debate.js';
 import { MARKETS, nextOpen, fmtKST } from '../src/markets.js';
 import { renderEquityChart } from './chart.js';
 
@@ -316,7 +317,9 @@ function renderPicks() {
             ${levelsHtml(r)}
             <p class="summary">${escapeHtml(r.summary)}</p>
             <p class="stop">🛡 손절 기준 <b>${fmtPrice(r.stopPrice, r.currency)}</b> (현재가 대비 ${fmtPct(r.stopPrice / r.price - 1, 0)}, 또는 200일선 이탈)</p>
+            <button class="small-btn debate-btn">🏛 에이전트 토론 보기</button><pre class="plain-text debate-text hidden"></pre>
         `;
+        wireDebate(card, r);
         picksContainer.appendChild(card);
     });
 }
@@ -351,8 +354,10 @@ function renderWatch() {
             ${checksHtml(r)}
             ${levelsHtml(r)}
             <details class="more"><summary>근거 자세히</summary><p class="summary">${escapeHtml(r.summary)}</p>
-                ${r.action !== '관망' ? `<p class="stop">🛡 손절 기준 <b>${fmtPrice(r.stopPrice, r.currency)}</b> (현재가 대비 ${fmtPct(r.stopPrice / r.price - 1, 0)})</p>` : ''}</details>
+                ${r.action !== '관망' ? `<p class="stop">🛡 손절 기준 <b>${fmtPrice(r.stopPrice, r.currency)}</b> (현재가 대비 ${fmtPct(r.stopPrice / r.price - 1, 0)})</p>` : ''}
+                <button class="small-btn debate-btn">🏛 에이전트 토론 보기</button><pre class="plain-text debate-text hidden"></pre></details>
         `;
+        wireDebate(card, r);
         resultContainer.appendChild(card);
     }
 }
@@ -396,6 +401,22 @@ async function runBacktest() {
         btChart.innerHTML = `<div class="empty-state"><p>${escapeHtml(e.message)}</p></div>`;
     }
     backtestBtn.disabled = false;
+}
+
+// 에이전트 토론 (TradingAgents 구조를 규칙으로)
+function wireDebate(card, r) {
+    const btn = card.querySelector('.debate-btn');
+    const pre = card.querySelector('.debate-text');
+    btn.addEventListener('click', () => {
+        if (pre.classList.contains('hidden')) {
+            pre.textContent = buildDebateText(debate(r, { regime: state.regimes[r.market], peers: state.results }));
+            pre.classList.remove('hidden');
+            btn.textContent = '토론 닫기';
+        } else {
+            pre.classList.add('hidden');
+            btn.textContent = '🏛 에이전트 토론 보기';
+        }
+    });
 }
 
 // 신호 복기

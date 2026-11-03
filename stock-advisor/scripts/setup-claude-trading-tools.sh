@@ -22,6 +22,15 @@ fi
 mkdir -p ~/.claude/skills
 (cd ~/claude-trading-skills/skills && cp -R technical-analyst trader-memory-core signal-postmortem trade-performance-coach ~/.claude/skills/)
 
+echo "▶ ③ TradingAgents (선택) — 멀티 에이전트 LLM 프레임워크. LLM 사용료가 들고 Python 3.11+ 가 필요합니다."
+if [ "${WITH_TRADINGAGENTS:-0}" = "1" ]; then
+  [ -d ~/TradingAgents ] || git clone https://github.com/TauricResearch/TradingAgents.git ~/TradingAgents
+  echo "  → cd ~/TradingAgents 후 가상환경(conda/uv)을 만들고 'pip install .' (또는 'uv pip install .'), 실행은 'tradingagents'"
+  echo "  → API 키는 .env 파일에. LLM 제공사에서 사용료 상한을 먼저 걸고, 가장 얕은 깊이로 한 번만 돌려 보세요."
+else
+  echo "  (건너뜀 — 받으려면 WITH_TRADINGAGENTS=1 로 다시 실행. 공식: git clone https://github.com/TauricResearch/TradingAgents.git)"
+fi
+
 cat <<'MSG'
 
 ✅ 설치 끝. 다음 순서:
@@ -30,4 +39,5 @@ cat <<'MSG'
  3. 클로드 코드를 다시 열고 "tv_health_check로 트레이딩뷰 연결됐는지 확인해줘"
  4. "추세선 그어줘" · "모닝 브리핑 해줘" · "이번 매매 복기해줘"
  74개 스킬 전부: cp -R ~/claude-trading-skills/skills/* ~/.claude/skills/
+ TradingAgents 안내: 이 저장소를 클로드 코드로 열고 "TradingAgents 설치 순서 알려줘" (.claude/skills/tradingagents)
 MSG

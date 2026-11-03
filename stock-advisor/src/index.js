@@ -7,6 +7,7 @@ import { buildBrief, DEFAULT_RISK_RULES } from './brief.js';
 import { SessionStore, diffSessions, today } from './sessions.js';
 import { postmortem, buildReviewText } from './review.js';
 import { TradeJournal, coach, buildCoachText } from './journal.js';
+import { debate, buildDebateText } from './debate.js';
 import { MARKETS, nextOpen, fmtKST } from './markets.js';
 import { connect, listTools, sendToKakao } from './playmcp.js';
 
@@ -17,6 +18,7 @@ import { connect, listTools, sendToKakao } from './playmcp.js';
 //   node src/index.js trade add buy|sell 종목 가격 [--qty 10] [--stop 64000] [--reason "..."]   매매 기록
 //   node src/index.js trade list | trade remove <id>
 //   node src/index.js coach                                   매매 코칭 (반복 실수 → 다음 규칙)
+//   node src/index.js debate 005930.KS [--demo]               에이전트 토론 (TradingAgents 구조를 규칙으로)
 //   node src/index.js check [--market kr|us]                  종목코드 조회 점검
 //   node src/index.js tools                                   PlayMCP 도구 목록
 //   node src/index.js next                                    다음 개장 알림 시각
@@ -86,6 +88,17 @@ async function main() {
     const latest = sessions.latest();
     const signals = Object.fromEntries((latest?.signals ?? []).map((s) => [s.symbol, { action: s.action, regimeOk: latest.regimes?.[s.market]?.ok }]));
     console.log(buildCoachText(coach(journal.list(), { signals, rules })));
+    return;
+  }
+
+  if (args[0] === 'debate') {
+    const symbol = args[1]?.toUpperCase();
+    if (!symbol) throw new Error('종목코드를 주세요: node src/index.js debate 005930.KS');
+    if (!candidates.some((c) => c.symbol === symbol)) candidates.push({ symbol, name: nameOf(symbol), market: /\.(KS|KQ)$/.test(symbol) ? 'kr' : 'us', sector: '기타', watch: true });
+    const { results, regimes } = await runScreen();
+    const r = results.find((x) => x.symbol === symbol);
+    if (!r || r.error) throw new Error(`${symbol}: ${r?.error ?? '분석 결과 없음'}`);
+    console.log(buildDebateText(debate(r, { regime: regimes[r.market], peers: results })));
     return;
   }
 

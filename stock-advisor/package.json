@@ -18,6 +18,7 @@
     "review": "node src/index.js review",
     "trade": "node src/index.js trade",
     "coach": "node src/index.js coach",
+    "debate": "node src/index.js debate",
     "test": "node --test test/*.test.js"
   },
   "engines": { "node": ">=18" },

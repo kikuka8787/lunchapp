@@ -22,6 +22,7 @@ npm run brief     # 모닝 브리핑 (관심 종목 방향 · 핵심 가격 · �
 npm run review    # 5일 · 20일 전 신호 복기 (맞음 / 틀림 / 놓침 / 시장과 엇갈림)
 npm run trade -- add buy 005930.KS 70000 --qty 10 --stop 64000 --reason "200일선 돌파"   # 매매 기록
 npm run coach     # 매매 코칭 (반복 실수 → 다음 매매 규칙)
+npm run debate -- 005930.KS   # 에이전트 토론: 분석가 → 강세/약세 → 트레이더 제안 → 리스크팀 → 매니저 (규칙 기반)
 npm run schedule  # 개장 시각마다 시장별 알림 (계속 떠 있는 프로세스)
 npm test
 ```
@@ -40,6 +41,12 @@ npm test
 | 주말 | `npm run coach` · 웹 "코칭 받기" | 손절가 없이 진입 · 손절 폭 과다 · 비중 초과 · 신호 역행 매수 · 약세장 매수 · 손절 미이행 · 근거 미기록을 세어 **반복 실수**를 찾고 **다음 매매 규칙** 제안 |
 
 위험 규칙과 코칭 기준은 `config.json`의 `rules`에서 바꿉니다 (`capital`을 넣으면 한 종목 비중 초과도 점검). 세션 저장 뒤 비교·복기가 붙으므로 **처음 며칠은 "비교할 세션 없음"이 정상**입니다. 데모 시세에서는 저장하지 않습니다.
+
+### 에이전트 토론 (TradingAgents 구조를 규칙으로)
+[TradingAgents](https://github.com/TauricResearch/TradingAgents)는 분석가·강세/약세 연구원·트레이더·리스크팀·매니저를 LLM 에이전트로 짜서 한 종목을 토론시키는 연구용 프레임워크입니다(Apache-2.0, LLM 사용료 별도).
+`npm run debate -- 종목코드` 또는 웹 카드의 "에이전트 토론 보기"는 같은 역할 구조를 **LLM 없이 우리 지표만으로** 흉내 냅니다:
+분석가(기술적·리스크·시장 국면, 재무/뉴스는 "데이터 없음" 명시) → 강세/약세 근거 → 트레이더 제안(진입 방식·비중·손절·1차 목표·손익비) → 리스크팀(최대 손실·손익비·변동성·과열·섹터) 승인/조건부/거절 → 매니저 결론.
+무료이고 결정적이지만 뉴스·실적은 못 봅니다. 진짜 LLM 토론이 필요하면 본체를 쓰세요 — 설치·비용·면책 안내는 `.claude/skills/tradingagents/SKILL.md`(이 저장소를 Claude Code로 열고 "TradingAgents 설치 순서 알려줘").
 
 ### 가이드의 원래 도구를 Claude Code에서 쓰려면
 `scripts/setup-claude-trading-tools.sh`에 가이드(2026-10-30 기준)의 설치 명령을 그대로 모았습니다 — 트레이딩뷰 MCP 잭슨 설치·`claude mcp add` 등록·트레이딩 스킬 4개 복사. 본인 컴퓨터에서 실행하고, 트레이딩뷰를 연결 모드(포트 9222)로 켠 뒤 "tv_health_check로 확인해줘"로 시작하세요. 트레이딩뷰 공식 도구가 아니라 업데이트로 멈출 수 있고, 자동매매·재배포는 금지입니다.
@@ -132,6 +139,6 @@ CLI는 MCP 클라이언트로 PlayMCP 서버에 접속해 "나와의 채팅방" 
 - `src/data.js` 시세 조회 · `src/indicators.js` 지표 · `src/strategy.js` 전략(분석·순위·근거) · `src/screener.js` 유니버스 스크리닝 · `src/backtest.js` 백테스트
 - `universe.json` 추천 후보 종목 목록 · `config.json` 관심 종목과 전략 파라미터
 - `src/markets.js` 개장 시각 계산 · `src/schedule.js` 개장 알림 스케줄러
-- `src/brief.js` 모닝 브리핑 · `src/sessions.js` 세션 저장/어제와 비교 · `src/review.js` 신호 복기 · `src/journal.js` 매매 기록/코칭
+- `src/brief.js` 모닝 브리핑 · `src/sessions.js` 세션 저장/어제와 비교 · `src/review.js` 신호 복기 · `src/journal.js` 매매 기록/코칭 · `src/debate.js` 에이전트 토론
 - `scripts/setup-claude-trading-tools.sh` 가이드의 트레이딩뷰 MCP·트레이딩 스킬 설치 스크립트
 - `src/message.js` 카톡 메시지 · `src/playmcp.js` MCP 클라이언트 · `src/index.js` CLI
