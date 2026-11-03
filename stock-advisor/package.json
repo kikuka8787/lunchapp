@@ -1,0 +1,28 @@
+{
+  "name": "stock-advisor",
+  "version": "0.2.0",
+  "description": "듀얼 모멘텀 기반 매수/매도 참고 신호를 웹 앱으로 보여주고 카카오톡(PlayMCP)으로 보내주는 앱",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "web": "node src/serve.js",
+    "start": "node src/index.js",
+    "dry-run": "node src/index.js --dry-run",
+    "demo": "node src/index.js --demo --dry-run",
+    "tools": "node src/index.js tools",
+    "backtest": "node src/index.js backtest",
+    "schedule": "node src/schedule.js",
+    "next": "node src/index.js next",
+    "check": "node src/index.js check",
+    "brief": "node src/index.js --brief --dry-run",
+    "review": "node src/index.js review",
+    "trade": "node src/index.js trade",
+    "coach": "node src/index.js coach",
+    "debate": "node src/index.js debate",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
