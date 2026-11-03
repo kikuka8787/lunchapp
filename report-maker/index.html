@@ -165,7 +165,8 @@
   #modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.45); padding: 16px; z-index: 60; }
   #modal.show { display: flex; }
   #modal .box { background: #fff; border-radius: var(--radius); padding: 22px; max-width: 380px; width: 100%; }
-  #modal p { margin: 0 0 16px; white-space: pre-line; }
+  #modal p { margin: 0 0 16px; white-space: pre-line; max-height: 55vh; overflow-y: auto; }
+  .warn { background: #fff4e0; color: #8a4b00; border: 1px solid #f5d29a; border-radius: 10px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 14px; }
 
   .mobile-switch { display: none; }
   @media (max-width: 900px) {
@@ -343,6 +344,7 @@ const INDICATORS = [
   {
     id: "1-4", area: 1, title: "교육활동 보호", pts: 5, method: "정량",
     purpose: ["교육공동체 권리와 책임의 균형이 있는 상호존중의 학교문화 조성 및 안전한 교육 전념 여건 마련으로 교육활동 보호 강화"],
+    aiNote: "2024. 3. 28. 교원지위법 개정으로 학교교권보호위원회는 교육지원청 지역교권보호위원회로 이관되었으므로 '학교 교권보호위원회 운영'이라고 쓰지 말 것",
     quant: { max: 5, items: [
       { key: "q1", type: "checks", label: "교육활동 침해행위 예방교육 계획 수립 및 홈페이지 게시", max: 1,
         items: [["예방교육 계획 수립", .5], ["학교 홈페이지 게시(3. 31.까지)", .5]] },
@@ -592,12 +594,14 @@ function evalQuant(item, q) {
   if (item.type === "checks") {
     const on = item.items.filter((_, i) => q[`${k}_${i}`]);
     const score = r2(on.reduce((s, x) => s + x[1], 0));
-    return { done: true, value: on.length ? on.map(x => x[0]).join(", ") : "해당 없음", grade: `${on.length}/${item.items.length}개 충족`, score };
+    const off = item.items.filter((_, i) => !q[`${k}_${i}`]).map(x => x[0]);
+    return { done: true, value: on.length ? on.map(x => x[0]).join(", ") : "해당 없음", grade: `${on.length}/${item.items.length}개 충족`, score, on: on.map(x => x[0]), off };
   }
   if (item.type === "count") {
     const n = item.items.filter((_, i) => q[`${k}_${i}`]).length;
     const bd = band(item.bands, n), gi = item.bands.indexOf(bd);
-    return { done: true, value: `${n}개 항목 시행`, grade: G5[gi], range: bd[1], score: bd[2] };
+    return { done: true, value: `${n}개 항목 시행`, grade: G5[gi], range: bd[1], score: bd[2],
+      on: item.items.filter((_, i) => q[`${k}_${i}`]), off: item.items.filter((_, i) => !q[`${k}_${i}`]) };
   }
   if (item.type === "facility") {
     const g = num(q[k + "_g"]), y = num(q[k + "_y"]);
@@ -626,12 +630,33 @@ function indScore(def) {
   for (const e of qualElems(def)) { total++; const r = evalElem(e, st); if (r.done) { done++; score += r.score; } }
   return { score: r2(score), done, total, complete: done === total };
 }
+// 지표에서 아직 안 채운 것
+function indMissing(def) {
+  const st = S(def.id), m = [];
+  const q = (def.quant?.items || []).filter(it => !evalQuant(it, st.q).done).map(it => it.label);
+  if (q.length) m.push(`정량 실적(${q.join(", ")})`);
+  const g = qualElems(def).filter(e => !evalElem(e, st).done).length;
+  if (g) m.push(`자체 판단 등급 ${g}개`);
+  if (!st.memo.trim()) m.push("올해 한 일 메모");
+  const empty = fieldsOf(def).filter(f => !(st.out[f.key] || "").trim()).length;
+  if (empty) m.push(`보고서 글 ${empty}칸`);
+  const holes = fieldsOf(def).reduce((n, f) => n + ((st.out[f.key] || "").match(/○/g) || []).length, 0);
+  if (holes) m.push(`글 속 ○ 빈칸 ${holes}곳`);
+  return m;
+}
+function allMissing() {
+  const s = state.school, out = [];
+  const sm = [["name", "학교명"], ["principal", "학교장"], ["vice", "교감"], ["address", "주소"], ["classes", "학급수"], ["students", "총 학생수"], ["vision", "비전·교육 목표"]].filter(([k]) => !String(s[k] || "").trim()).map(x => x[1]);
+  if (sm.length) out.push(`학교 현황: ${sm.join(", ")}`);
+  for (const d of INDICATORS) { const m = indMissing(d); if (m.length) out.push(`${d.id}: ${m.join(", ")}`); }
+  return out;
+}
 function indStatus(def) {
   const st = S(def.id);
   const fields = fieldsOf(def);
   const filled = fields.filter(f => (st.out[f.key] || "").trim()).length;
-  if (filled >= fields.length) return "done";
-  if (filled > 0 || st.memo.trim()) return "half";
+  if (filled >= fields.length && indScore(def).complete) return "done";
+  if (filled > 0 || st.memo.trim() || indScore(def).done) return "half";
   return "";
 }
 
@@ -639,7 +664,8 @@ function indStatus(def) {
 //  4. 보고서 문서 모델 (미리보기와 한글 파일이 같은 모델을 쓴다)
 //     블록: {t:'p'} 문단 / {t:'tbl'} 표 / {t:'pb'} 쪽 나눔
 // ============================================================
-const lines = (s) => String(s || "").split("\n").map(x => x.replace(/^\s*(?:[∙•·\-*]|\d+[.)])\s*/, "").trim()).filter(Boolean);
+const cleanLine = (x) => String(x).replace(/^\s*(?:[∙•·\-*]|\d+[.)])\s*/, "").trim().replace(/\s*[.。]+$/, "");
+const lines = (s) => String(s || "").split("\n").map(cleanLine).filter(Boolean);
 const P = (text, cs = "body", ps = "body", extra = {}) => ({ t: "p", ps, runs: [{ text, cs }], ...extra });
 const cell = (c, o = {}) => ({ c, ...o });
 const L = (c, o = {}) => cell(c, { bf: "label", align: "center", cs: "cellB", ...o });
@@ -698,13 +724,13 @@ function buildDoc() {
       const row = [];
       if (i === 0) row.push(L(`${a.no}. ${a.name}\n(${a.pts}점)`, { rs: defs.length, bf: "sub", cs: "cellB" }));
       row.push(cell(d.id, { align: "center" }), cell(d.title), cell(d.method.replace(/\(.*\)/, ""), { align: "center" }),
-        cell(String(d.pts), { align: "center" }), cell(sc.done ? fmt(sc.score) : "", { align: "center", bf: "score" }));
+        cell(String(d.pts), { align: "center" }), cell(sc.done ? fmt(sc.score) + (sc.complete ? "" : "*") : "", { align: "center", bf: "score" }));
       ovRows.push(row);
     });
   }
-  ovRows.push([L("합계", { span: 4 }), cell("100", { align: "center", cs: "cellB" }), cell(grand ? fmt(grand) : "", { align: "center", cs: "cellB", bf: "score" })]);
+  ovRows.push([L("합계", { span: 4 }), cell("100", { align: "center", cs: "cellB" }), cell(grand ? fmt(grand) + (grandDone ? "" : "*") : "", { align: "center", cs: "cellB", bf: "score" })]);
   B.push({ t: "tbl", ps: "tblPara", widths: [21, 6, 44, 10, 7, 12], rows: ovRows });
-  B.push(P("※ 자체 점수는 담당자가 입력한 정량 실적과 정성 자체 판단으로 계산한 참고 점수임." + (grandDone ? "" : " (일부 미입력)"), "small", "body"));
+  B.push(P("※ 자체 점수는 담당자가 입력한 정량 실적과 정성 자체 판단으로 계산한 참고 점수임." + (grandDone ? "" : " * 일부 항목 미입력으로 실제보다 낮게 계산됨."), "small", "body"));
 
   // ── Ⅲ. 평가지표별 평가 결과
   B.push({ t: "pb" });
@@ -762,7 +788,7 @@ function buildIndicator(B, d, opt) {
   const ab = ["가", "나", "다", "라"]; let k = 0;
 
   push({ t: "tbl", ps: "tblPara", widths: [13, 9, 53, 12, 13], rows: [
-    [L("평가지표"), cell(d.id, { align: "center", cs: "cellB" }), cell(d.title, { cs: "cellB" }), L("평가점수"), cell(`${sc.done ? fmt(sc.score) : "    "} / ${d.pts}`, { align: "center", bf: "score", cs: "cellB" })],
+    [L("평가지표"), cell(d.id, { align: "center", cs: "cellB" }), cell(d.title, { cs: "cellB" }), L("평가점수"), cell(sc.complete ? `${fmt(sc.score)} / ${d.pts}` : sc.done ? [`${fmt(sc.score)} / ${d.pts}`, "(일부 미입력)"] : `     / ${d.pts}`, { align: "center", bf: "score", cs: "cellB" })],
     [L("평가방법"), cell(d.method, { span: 4 })],
     [L("평가목적"), cell(d.purpose, { span: 4, bullet: true })],
   ] });
@@ -1135,7 +1161,9 @@ const SYSTEM_PROMPT = `당신은 경기도 초등학교의 학교평가 업무 �
 담당 교사가 준 메모와 지표 정보를 바탕으로 「학교평가 보고서」의 '평가 결과' 부분 문장을 씁니다.
 [문체] 공문서 개조식. 한 항목은 한 문장(40~90자). 끝맺음은 '~함', '~임', '~하였음', '~할 예정임' 같은 명사형 종결. '~합니다', '~했다' 금지.
 [기호] 항목 앞에 •, ∙, -, 숫자 같은 기호를 붙이지 않음(보고서가 자동으로 붙임).
-[사실] 메모와 정량 결과에 있는 사실·수치만 근거로 씀. 메모에 없는 수치, 날짜, 행사·프로그램 이름, 설문 결과를 절대 지어내지 않음. 꼭 필요한 자리는 '○○', '○회', '○%'처럼 빈칸으로 남겨 담당자가 채우게 함.
+[사실] 메모와 정량 결과에 있는 사실·수치만 근거로 씀. 메모에 없는 수치, 날짜, 행사·프로그램 이름, 사업명·제도명·조직·위원회 이름(예: 두드림학교, 다중지원팀, 멘토링, 안심번호, 협약·규약), 설문 결과를 절대 지어내지 않음. 꼭 필요한 자리는 '○○', '○회', '○%'처럼 빈칸으로 남겨 담당자가 채우게 함.
+[정량] 정량 결과에서 '미시행'으로 표시된 항목은 시행했다고 쓰지 않고, '실적 미입력' 항목은 시행 여부와 수치를 단정하지 않음. 정량표의 결과와 문장이 서로 어긋나면 안 됨.
+[표현] '강화', '체계', '내실', '도모', '제고', '지속적' 같은 상투어를 되풀이하지 말고, 누가·무엇을·어떻게 했는지 드러나는 구체적인 동사로 씀. 문장 끝에 마침표를 찍지 않음.
 [흐름] 평가 주안점에 답하듯 계획 → 운영 → 성과분석·환류가 이어지게 쓰고, 개선점은 다음 학년도 반영사항과 연결함.
 [출력] 요청한 키만 가진 JSON 객체 하나만 출력. 값은 문자열 배열이며 future만 문자열.`;
 
@@ -1186,7 +1214,9 @@ function indicatorContext(d) {
     L2.push("[정량평가 결과]");
     d.quant.items.forEach(it => {
       const r = evalQuant(it, st.q);
-      L2.push(`- ${it.label}(${it.max}점): ${r.done ? `${r.value}${r.detail ? ` (${r.detail})` : ""} → ${r.grade}${r.range ? `(${r.range})` : ""}, ${fmt(r.score)}점` : "아직 입력 안 됨"}`);
+      if (!r.done) { L2.push(`- ${it.label}(${it.max}점): 실적 미입력 — 시행 여부·수치를 단정하지 말고 ○○로 비울 것`); return; }
+      L2.push(`- ${it.label}(${it.max}점): ${r.value}${r.detail ? ` (${r.detail})` : ""} → ${r.grade}${r.range ? `(${r.range})` : ""}, ${fmt(r.score)}점`);
+      if (r.on) L2.push(`  · 시행: ${r.on.join(", ") || "없음"} / 미시행(시행했다고 쓰지 말 것): ${r.off.join(", ") || "없음"}`);
     });
   }
   if (d.qual) {
@@ -1204,8 +1234,9 @@ function indicatorContext(d) {
     const q = st.q;
     L2.push(`[학교자율과제 예산] 표준교육비 총액 ${q.b_std || "?"}천원, 편성 ${q.b_plan || "?"}천원, 집행 ${q.b_used || "?"}천원`);
   }
+  if (d.aiNote) L2.push(`[주의] ${d.aiNote}`);
   L2.push("[담당 교사 메모]");
-  L2.push(st.memo.trim() || "(메모 없음 — 일반적인 초등학교 운영 수준으로 쓰되, 구체적인 수치·행사명·결과는 모두 ○○로 비워 둘 것)");
+  L2.push(st.memo.trim() || "(메모 없음 — 학교가 실제로 한 활동을 알 수 없음. 특정 사업·제도·조직 이름을 쓰지 말고 '○○ 프로그램'처럼 비워 두며, 평가 주안점에 맞춘 틀 문장으로만 쓸 것. 수치·날짜·결과도 모두 ○○로 비울 것)");
   return L2.join("\n");
 }
 
@@ -1219,7 +1250,7 @@ function applyResult(d, obj) {
   for (const f of fieldsOf(d)) {
     const v = obj[f.key];
     if (v === undefined || v === null) continue;
-    st.out[f.key] = Array.isArray(v) ? v.map(x => String(x).replace(/^\s*(?:[∙•·\-*]|\d+[.)])\s*/, "").trim()).filter(Boolean).join("\n") : String(v).trim();
+    st.out[f.key] = Array.isArray(v) ? v.map(cleanLine).filter(Boolean).join("\n") : cleanLine(v);
   }
 }
 
@@ -1346,6 +1377,7 @@ function renderIndicator(d) {
   }
 
   const isBusy = busy.has(d.id);
+  h += `<div class="warn" data-calc="${d.id}:missing"></div>`;
   h += `<div class="card ai-box"><h3>🗒️ 올해 한 일 메모</h3>
     ${area(`memo:${d.id}`, st.memo, memoHint(d), 6)}
     <p class="hint">시기·대상·횟수, 눈에 띈 성과, 아쉬운 점, 내년에 바꿀 점을 짧게 적을수록 정확해져요. 문장으로 안 써도 돼요.</p>
@@ -1377,7 +1409,8 @@ function updateCalcs() {
   document.querySelectorAll("[data-calc]").forEach(el => {
     const [id, key] = el.dataset.calc.split(":"); const d = IND[id];
     if (!d) return;
-    if (key === "total") { const sc = indScore(d); el.textContent = `예상 ${sc.done ? fmt(sc.score) : "-"} / ${d.pts}점`; return; }
+    if (key === "total") { const sc = indScore(d); el.textContent = `예상 ${sc.done ? fmt(sc.score) : "-"} / ${d.pts}점${sc.done && !sc.complete ? " (일부)" : ""}`; return; }
+    if (key === "missing") { const m = indMissing(d); el.textContent = m.length ? "⚠️ 아직 안 채운 것: " + m.join(" · ") : ""; el.style.display = m.length ? "" : "none"; return; }
     if (key === "budget") {
       const q = S(id).q, A = num(q.b_std), P2 = num(q.b_plan), U = num(q.b_used);
       const t = [A && P2 !== null ? `편성률 ${r2(P2 / A * 100)}%` : "", P2 && U !== null ? `집행률 ${r2(U / P2 * 100)}%` : ""].filter(Boolean).join(" · ");
@@ -1541,6 +1574,11 @@ document.addEventListener("click", async (e) => {
   }
   if (act === "ai-all") return runAll();
   if (act === "hwpx") {
+    const miss = allMissing();
+    if (miss.length) {
+      const shown = miss.slice(0, 10).join("\n") + (miss.length > 10 ? `\n… 외 ${miss.length - 10}곳` : "");
+      if (!(await confirmModal(`아직 채우지 않은 곳이 있어요.\n\n${shown}\n\n그래도 지금 상태로 저장할까요?`, "그래도 저장"))) return;
+    }
     btn.disabled = true;
     try {
       const blob = await buildHwpx();
