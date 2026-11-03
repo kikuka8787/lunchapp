@@ -587,7 +587,7 @@ const IND = Object.fromEntries(INDICATORS.map(d => [d.id, d]));
 function fieldsOf(def) {
   const f = [];
   if (def.quant) {
-    f.push({ key: "qres", label: "정량 결과분석(우수사례, 개선사항)", n: "2~4", sect: "quant" });
+    f.push({ key: "qres", label: "정량 결과분석(우수사례, 개선사항)", n: "2~4", sect: "quant", hint: "앞에 (우수) 또는 (개선)을 붙여 구분" });
     f.push({ key: "qnext", label: "정량 · 다음 학년도 반영사항", n: "1~2", sect: "quant" });
   }
   if (def.qual) {
@@ -606,7 +606,7 @@ function fieldsOf(def) {
     }
     f.push({ key: "next", label: "다음 학년도 반영사항(종합)", n: "2~3", sect: "total" });
   }
-  f.push({ key: "future", label: "향후 추진 계획(Ⅳ장 표에 들어감)", n: "1~2", sect: "future" });
+  f.push({ key: "future", label: "향후 추진 계획(Ⅳ장 표에 들어감)", n: "1~2", sect: "future", hint: "모두 '~할 예정임'으로 끝냄" });
   return f;
 }
 
@@ -1251,7 +1251,7 @@ const SYSTEM_PROMPT = `당신은 경기도 초등학교의 학교평가 업무 �
 [기호] 항목 앞에 •, ∙, -, 숫자 같은 기호를 붙이지 않음(보고서가 자동으로 붙임).
 [사실] 메모와 정량 결과에 있는 사실·수치만 근거로 씀. 메모에 없는 수치, 날짜, 행사·프로그램 이름, 사업명·제도명·조직·위원회 이름(예: 두드림학교, 다중지원팀, 멘토링, 안심번호, 협약·규약), 설문 결과를 절대 지어내지 않음. 꼭 필요한 자리는 '○○', '○회', '○%'처럼 빈칸으로 남겨 담당자가 채우게 함.
 [빈칸] ○○는 숫자·이름이 들어갈 자리에만 쓰고 한 항목에 1개까지만 씀. '○○함', '○○하는', '○○한 실적'처럼 동사·서술어 자리에는 절대 쓰지 않음. 모르는 내용은 빈칸 대신 특정 이름 없는 자연스러운 문장으로 씀.
-[정량] 정량 결과에서 '미시행'으로 표시된 항목은 시행했다고 쓰지 않음. '수치 미입력'은 담당자가 앱에 아직 숫자를 안 넣었다는 뜻일 뿐 학교의 문제가 아니므로, 수치만 ○○로 비우고 '실적 관리·입력·증빙'을 개선점이나 반영사항으로 쓰지 않음. 정량표의 결과와 문장이 서로 어긋나면 안 됨.
+[정량] 정량 결과에서 '미시행'으로 표시된 항목은 시행했다고 쓰지 않음. '수치 미입력'은 담당자가 앱에 아직 숫자를 안 넣었다는 뜻일 뿐 학교의 문제가 아니므로, 그 항목은 우수·미흡을 판단하지 말고 '○○ 집행률은 ○○%임'처럼 중립적으로 쓰며, 통계·데이터·실적 관리나 입력 정확성을 개선점이나 반영사항으로 쓰지 않음. 각 정량 항목은 [산출 기준]에 적힌 이름과 기준 그대로 씀(예: 수업시수 비율을 '학급 비율'로, 게시 여부를 '게시 횟수'로 바꾸지 않음). 정량표의 결과와 문장이 서로 어긋나면 안 됨.
 [우수·개선] 우수사례 및 개선 사항은 (우수) 항목을 먼저, (개선) 항목을 뒤에 씀.
 [표현] '강화', '체계', '내실', '도모', '제고', '지속적' 같은 상투어를 되풀이하지 말고, 누가·무엇을·어떻게 했는지 드러나는 구체적인 동사로 씀. 문장 끝에 마침표를 찍지 않음.
 [흐름] 평가 주안점에 답하듯 계획 → 운영 → 성과분석·환류가 이어지게 쓰고, 개선점은 다음 학년도 반영사항과 연결함.
@@ -1310,8 +1310,9 @@ function indicatorContext(d) {
     L2.push("[정량평가 결과]");
     d.quant.items.forEach(it => {
       const r = evalQuant(it, st.q);
-      if (!r.done) { L2.push(`- ${it.label}(${it.max}점): 수치 미입력(담당자가 아직 안 넣음) — 수치는 ○○로 비우고 시행 여부를 단정하지 말 것`); return; }
-      L2.push(`- ${it.label}(${it.max}점): ${r.value}${r.detail ? ` (${r.detail})` : ""} → ${r.grade}${r.range ? `(${r.range})` : ""}, ${fmt(r.score)}점`);
+      const basis = quantBasis(it);
+      if (!r.done) { L2.push(`- ${it.label}(${it.max}점) [산출 기준: ${basis}]: 수치 미입력(담당자가 아직 안 넣음) — 수치는 ○○로 비우고 결과를 우수·미흡으로 판단하지 말 것`); return; }
+      L2.push(`- ${it.label}(${it.max}점) [산출 기준: ${basis}]: ${r.value}${r.detail ? ` (${r.detail})` : ""} → ${r.grade}${r.range ? `(${r.range})` : ""}, ${fmt(r.score)}점`);
       if (r.on) L2.push(`  · 시행: ${r.on.join(", ") || "없음"} / 미시행(시행했다고 쓰지 말 것): ${r.off.join(", ") || "없음"}`);
     });
   }
@@ -1336,6 +1337,17 @@ function indicatorContext(d) {
   return L2.join("\n");
 }
 
+// 정량 항목의 산출 기준(AI가 다른 기준으로 바꿔 쓰지 않게)
+function quantBasis(it) {
+  const clean = (x) => x.replace(/\((A|B)[^)]*\)/, "").replace(/\s*—.*$/, "").trim();
+  if (it.type === "rate") return `${clean(it.b)} ÷ ${clean(it.a)} × 100(%)`;
+  if (it.type === "select") return it.options.map(o => o[0]).join(" / ");
+  if (it.type === "checks") return `항목별 시행 여부(횟수 아님): ${it.items.map(x => x[0]).join(", ")}`;
+  if (it.type === "count") return `시행한 항목 수: ${it.items.join(", ")}`;
+  if (it.type === "facility") return "운동장 개방 가능 일수×50% + 체육관 개방 가능 일수×50%(운동장 최대 120일)";
+  return "";
+}
+
 function keySpec(d, only) {
   return fieldsOf(d).filter(f => !only || only.includes(f.key)).map(f => `"${f.key}": 문자열 배열(${f.n}개) — ${f.label}${f.hint ? ` (${f.hint})` : ""}`).join("\n");
 }
@@ -1348,7 +1360,7 @@ function applyResult(d, obj, only) {
     const v = obj[f.key];
     if (v === undefined || v === null) continue;
     let arr = lines((Array.isArray(v) ? v : [v]).map(String).join("\n"));
-    if (f.key === "cases") arr = [...arr.filter(x => !x.startsWith("(개선)")), ...arr.filter(x => x.startsWith("(개선)"))];
+    if (/^(cases|qres|[stp]_a)$/.test(f.key)) arr = [...arr.filter(x => !x.startsWith("(개선)")), ...arr.filter(x => x.startsWith("(개선)"))];
     st.out[f.key] = arr.join("\n");
   }
 }
