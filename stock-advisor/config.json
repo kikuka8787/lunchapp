@@ -1,15 +1,37 @@
 {
   "watchlist": [
-    { "symbol": "005930.KS", "name": "삼성전자" },
-    { "symbol": "000660.KS", "name": "SK하이닉스" },
-    { "symbol": "035420.KS", "name": "NAVER" },
-    { "symbol": "AAPL", "name": "애플" },
-    { "symbol": "NVDA", "name": "엔비디아" }
+    {
+      "symbol": "005930.KS",
+      "name": "삼성전자"
+    },
+    {
+      "symbol": "000660.KS",
+      "name": "SK하이닉스"
+    },
+    {
+      "symbol": "035420.KS",
+      "name": "NAVER"
+    },
+    {
+      "symbol": "AAPL",
+      "name": "애플"
+    },
+    {
+      "symbol": "NVDA",
+      "name": "엔비디아"
+    }
   ],
   "includeUniverse": true,
-  "history": { "range": "2y", "interval": "1d" },
+  "history": {
+    "range": "2y",
+    "interval": "1d"
+  },
   "strategy": {
-    "lookbacks": [63, 126, 252],
+    "lookbacks": [
+      63,
+      126,
+      252
+    ],
     "skip": 21,
     "trendMA": 200,
     "volWindow": 60,
@@ -19,5 +41,16 @@
     "maxPerSector": 2,
     "regimeWeight": 0.5,
     "costBps": 10
+  },
+  "rules": {
+    "_note": "모닝 브리핑 위험 규칙과 코칭 기준. capital 을 넣으면 한 종목 비중 초과도 점검합니다.",
+    "riskRules": [
+      "들어가기 전에 손절가부터 정한다",
+      "한 종목 비중은 40%를 넘기지 않는다",
+      "시장 지수가 약세면 비중을 절반으로",
+      "관망·매도 검토 종목은 사지 않는다"
+    ],
+    "capital": null,
+    "maxStopPct": 0.2
   }
 }

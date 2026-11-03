@@ -18,9 +18,31 @@ npm start         # CLI: 분석 후 카카오톡 전송 (PlayMCP 연동 필요)
 npm run backtest  # CLI: 5년 백테스트 (--demo, --market kr|us, --range 2y|5y|10y, --watch-only)
 npm run next      # 다음 한국장/미국장 개장 알림 시각
 npm run check     # 유니버스·관심 종목 코드가 전부 조회되는지 점검 (실패 종목 목록 출력)
+npm run brief     # 모닝 브리핑 (관심 종목 방향 · 핵심 가격 · 볼 것 · 어제와 비교) — 출력만
+npm run review    # 5일 · 20일 전 신호 복기 (맞음 / 틀림 / 놓침 / 시장과 엇갈림)
+npm run trade -- add buy 005930.KS 70000 --qty 10 --stop 64000 --reason "200일선 돌파"   # 매매 기록
+npm run coach     # 매매 코칭 (반복 실수 → 다음 매매 규칙)
 npm run schedule  # 개장 시각마다 시장별 알림 (계속 떠 있는 프로세스)
 npm test
 ```
+
+### 모닝 브리핑 · 복기 · 코칭 (PICK IT 가이드의 "펀드 매니저" 루틴을 앱 안에)
+[트레이딩뷰 MCP 잭슨](https://github.com/LewisWJackson/tradingview-mcp-jackson)의 모닝 브리핑·세션 비교와
+[클로드 트레이딩 스킬](https://github.com/tradermonty/claude-trading-skills)의 매매 기록·복기·코칭 개념을 이 앱에 맞게 넣었습니다.
+트레이딩뷰 데스크톱이나 API 키 없이, 이미 받는 시세만으로 돌아갑니다.
+
+| 하루 루틴 | 명령 / 웹 | 하는 일 |
+|---|---|---|
+| 장 전 | `npm run brief` · 웹 "메시지 형식: 모닝 브리핑" | 관심 종목마다 **방향**(20EMA 위 · RSI 50 이상 · MACD 위 = 상승) · **지지/저항**(20EMA, 200일선, 손절 기준, 60일·52주 고점) · **볼 것**(RSI 과열 근접, MACD 크로스 임박, 200일선 테스트, 신고가 도전, 거래량 급증) + 추천 요약 + 위험 규칙 |
+| 매일 자동 | 분석할 때마다 `data/sessions.json`(웹은 브라우저)에 세션 저장 | **어제와 비교**: 액션·방향이 바뀐 종목부터, 추천 진입/이탈 |
+| 매매한 날 | `npm run trade -- add buy 종목 가격 --stop 손절가 --qty 수량 --reason "이유"` · 웹 "매매 기록" | 산 이유 · 가격 · 손절가 · 수량 기록 (당시 신호도 같이 저장) |
+| 며칠 뒤 | `npm run review` · 웹 "복기 실행" | 5일·20일 전 세션의 모든 신호를 지금 가격으로 채점 → 적중률, 추천/매수/관망 계열 평균 수익률 |
+| 주말 | `npm run coach` · 웹 "코칭 받기" | 손절가 없이 진입 · 손절 폭 과다 · 비중 초과 · 신호 역행 매수 · 약세장 매수 · 손절 미이행 · 근거 미기록을 세어 **반복 실수**를 찾고 **다음 매매 규칙** 제안 |
+
+위험 규칙과 코칭 기준은 `config.json`의 `rules`에서 바꿉니다 (`capital`을 넣으면 한 종목 비중 초과도 점검). 세션 저장 뒤 비교·복기가 붙으므로 **처음 며칠은 "비교할 세션 없음"이 정상**입니다. 데모 시세에서는 저장하지 않습니다.
+
+### 가이드의 원래 도구를 Claude Code에서 쓰려면
+`scripts/setup-claude-trading-tools.sh`에 가이드(2026-10-30 기준)의 설치 명령을 그대로 모았습니다 — 트레이딩뷰 MCP 잭슨 설치·`claude mcp add` 등록·트레이딩 스킬 4개 복사. 본인 컴퓨터에서 실행하고, 트레이딩뷰를 연결 모드(포트 9222)로 켠 뒤 "tv_health_check로 확인해줘"로 시작하세요. 트레이딩뷰 공식 도구가 아니라 업데이트로 멈출 수 있고, 자동매매·재배포는 금지입니다.
 
 ### 개장 알림 (한국장 09:00 KST, 미국장 09:30 ET)
 `npm run schedule`을 띄워두면 한국장 개장엔 `.KS/.KQ` 종목만, 미국장 개장엔 나머지 종목만 분석해 보냅니다.
@@ -28,6 +50,7 @@ npm test
 
 ```bash
 npm run schedule -- --dry-run     # 전송 없이 콘솔로만
+npm run schedule -- --brief       # 모닝 브리핑 형식으로 보내기
 OFFSET_MIN=10 npm run schedule    # 개장 10분 전에
 node src/index.js --market kr     # 한 번만 수동 실행
 ```
@@ -109,4 +132,6 @@ CLI는 MCP 클라이언트로 PlayMCP 서버에 접속해 "나와의 채팅방" 
 - `src/data.js` 시세 조회 · `src/indicators.js` 지표 · `src/strategy.js` 전략(분석·순위·근거) · `src/screener.js` 유니버스 스크리닝 · `src/backtest.js` 백테스트
 - `universe.json` 추천 후보 종목 목록 · `config.json` 관심 종목과 전략 파라미터
 - `src/markets.js` 개장 시각 계산 · `src/schedule.js` 개장 알림 스케줄러
+- `src/brief.js` 모닝 브리핑 · `src/sessions.js` 세션 저장/어제와 비교 · `src/review.js` 신호 복기 · `src/journal.js` 매매 기록/코칭
+- `scripts/setup-claude-trading-tools.sh` 가이드의 트레이딩뷰 MCP·트레이딩 스킬 설치 스크립트
 - `src/message.js` 카톡 메시지 · `src/playmcp.js` MCP 클라이언트 · `src/index.js` CLI

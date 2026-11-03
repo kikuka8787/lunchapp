@@ -3,8 +3,21 @@ import { DEFAULTS } from '../src/strategy.js';
 import { buildCandidates, screen, picksOf, watchOf } from '../src/screener.js';
 import { backtest } from '../src/backtest.js';
 import { buildMessage, ICON, fmtPrice, fmtPct } from '../src/message.js';
+import { buildBrief } from '../src/brief.js';
+import { SessionStore, diffSessions } from '../src/sessions.js';
+import { postmortem, buildReviewText } from '../src/review.js';
+import { TradeJournal, coach, buildCoachText } from '../src/journal.js';
 import { MARKETS, nextOpen, fmtKST } from '../src/markets.js';
 import { renderEquityChart } from './chart.js';
+
+// localStorage 어댑터 (세션 · 매매 기록)
+const storageAdapter = (key) => ({
+    read: () => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } },
+    write: (obj) => { try { localStorage.setItem(key, JSON.stringify(obj)); } catch { /* 용량 초과 등 */ } },
+});
+const sessions = new SessionStore(storageAdapter('sessions'));
+const journal = new TradeJournal(storageAdapter('trades'));
+const BIAS_CLASS = { '상승': 'up', '하락': 'down', '중립': 'flat' };
 
 const DEFAULT_WATCHLIST = [
     { symbol: '005930.KS', name: '삼성전자' },
@@ -28,8 +41,10 @@ let state = {
     demo: localStorage.getItem('demoMode') === '1',
     market: localStorage.getItem('market') || 'all',
     scope: localStorage.getItem('scope') || 'universe',
+    msgFormat: localStorage.getItem('msgFormat') || 'signal',
     results: null,
     regimes: {},
+    diff: null,
 };
 
 // DOM 요소
@@ -45,6 +60,13 @@ const scopeSel = $('scope');
 const progressEl = $('progress');
 const nextOpenEl = $('next-open');
 const regimeBar = $('regime-bar');
+const diffBar = $('diff-bar');
+const msgFormat = $('msg-format');
+const reviewSection = $('review-section');
+const reviewText = $('review-text');
+const tradeForm = $('trade-form');
+const tradeList = $('trade-list');
+const coachText = $('coach-text');
 const picksSection = $('picks-section');
 const picksContainer = $('picks-container');
 const resultContainer = $('result-container');
@@ -71,6 +93,18 @@ function init() {
     setInterval(renderNextOpen, 60_000);
     demoMode.checked = state.demo;
     scopeSel.value = state.scope;
+    msgFormat.value = state.msgFormat;
+    renderTrades();
+    reviewSection.classList.toggle('hidden', !sessions.list().length);
+
+    msgFormat.addEventListener('change', () => {
+        state.msgFormat = msgFormat.value;
+        localStorage.setItem('msgFormat', state.msgFormat);
+        if (state.results) renderMessage();
+    });
+    $('review-btn').addEventListener('click', runReview);
+    tradeForm.addEventListener('submit', addTrade);
+    $('coach-btn').addEventListener('click', runCoach);
 
     marketTabs.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-market]');
@@ -183,11 +217,17 @@ async function runAnalysis() {
     state.regimes = regimes;
     progressEl.textContent = '';
 
+    // 세션 저장 (데모 제외) + 어제와 비교
+    const session = SessionStore.fromResults(results, regimes, { market: state.market });
+    state.diff = diffSessions(sessions.previous(session.date), session);
+    if (!state.demo) sessions.save(session);
+    reviewSection.classList.toggle('hidden', !sessions.list().length);
+
     renderRegime();
+    renderDiff();
     renderPicks();
     renderWatch();
-    const m = MARKETS[state.market];
-    messagePreview.textContent = buildMessage(results, { title: m ? `${m.flag} ${m.label}` : '', regimes });
+    renderMessage();
     messageSection.classList.remove('hidden');
     resultDate.textContent = new Date().toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
         + (state.demo ? ' · 데모' : '') + ` · 후보 ${cands.length}종목`;
@@ -203,6 +243,42 @@ function renderRegime() {
             <span class="regime-label">${escapeHtml(r.label)}</span>
             <span class="regime-detail">${escapeHtml(r.detail ?? '')}</span>
         </div>`).join('');
+}
+
+function renderMessage() {
+    const m = MARKETS[state.market];
+    const title = m ? `${m.flag} ${m.label}` : '';
+    messagePreview.textContent = state.msgFormat === 'brief'
+        ? buildBrief(state.results, { title, regimes: state.regimes, diff: state.diff })
+        : buildMessage(state.results, { title, regimes: state.regimes });
+}
+
+function renderDiff() {
+    const d = state.diff;
+    const shown = d ? d.changed.filter((c) => c.watch || c.pick).slice(0, 8) : [];
+    const any = d && (shown.length || d.newPicks.length || d.droppedPicks.length);
+    diffBar.classList.toggle('hidden', !d);
+    if (!d) return;
+    diffBar.innerHTML = `<h3>🔁 ${escapeHtml(d.prevDate)} 대비</h3>` + (any ? '<ul>'
+        + shown.map((c) => `<li><b>${escapeHtml(c.name)}</b>: ${escapeHtml(c.items.join(', '))}${c.changePct != null ? ` (${fmtPct(c.changePct)})` : ''}</li>`).join('')
+        + (d.newPicks.length ? `<li>추천 진입: ${d.newPicks.map((s) => `${escapeHtml(s.name)}(${s.rank}위)`).join(', ')}</li>` : '')
+        + (d.droppedPicks.length ? `<li>추천 이탈: ${d.droppedPicks.map((s) => escapeHtml(s.name)).join(', ')}</li>` : '')
+        + '</ul>' : '<p class="muted">관심·추천 종목 변화 없음</p>');
+}
+
+function diffBadge(r) {
+    const c = state.diff?.changed.find((x) => x.symbol === r.symbol);
+    return c ? `<span class="diff-badge">어제 ${escapeHtml(c.items[0])}</span>` : '';
+}
+
+function biasTag(r) {
+    return `<span class="bias-tag ${BIAS_CLASS[r.bias]}" title="${escapeHtml(r.biasDetail)}">${r.bias === '상승' ? '▲' : r.bias === '하락' ? '▼' : '■'} ${r.bias}</span>`;
+}
+
+function levelsHtml(r) {
+    const sup = r.support.slice(0, 2).map((l) => `${fmtPrice(l.price, r.currency)}(${l.label})`).join(' / ');
+    const res = r.resistance.slice(0, 2).map((l) => `${fmtPrice(l.price, r.currency)}(${l.label})`).join(' / ');
+    return `<p class="levels">지지 ${escapeHtml(sup || '-')} · 저항 ${escapeHtml(res || '-')}${r.watchPoints.length ? ` · 볼 것: ${escapeHtml(r.watchPoints.join(', '))}` : ''}</p>`;
 }
 
 function checksHtml(r) {
@@ -231,12 +307,13 @@ function renderPicks() {
         card.className = `signal-card pick ${ACTION_CLASS[r.action]}`;
         card.innerHTML = `
             <div class="signal-head">
-                <div><span class="pick-no">${i + 1}</span><span class="name">${escapeHtml(r.name)}</span>
+                <div><span class="pick-no">${i + 1}</span><span class="name">${escapeHtml(r.name)}</span>${biasTag(r)}${diffBadge(r)}
                     <span class="symbol">${escapeHtml(r.symbol)} · ${escapeHtml(r.sector ?? '')}${r.watch ? ' · ⭐관심' : ''}</span></div>
                 <span class="action">${ICON[r.action]} ${r.action}</span>
             </div>
             ${priceRow(r)}
             ${checksHtml(r)}
+            ${levelsHtml(r)}
             <p class="summary">${escapeHtml(r.summary)}</p>
             <p class="stop">🛡 손절 기준 <b>${fmtPrice(r.stopPrice, r.currency)}</b> (현재가 대비 ${fmtPct(r.stopPrice / r.price - 1, 0)}, 또는 200일선 이탈)</p>
         `;
@@ -266,12 +343,13 @@ function renderWatch() {
         card.className = `signal-card ${ACTION_CLASS[r.action]}`;
         card.innerHTML = `
             <div class="signal-head">
-                <div><span class="name">${escapeHtml(r.name)}</span>
+                <div><span class="name">${escapeHtml(r.name)}</span>${biasTag(r)}${diffBadge(r)}
                     <span class="symbol">${escapeHtml(r.symbol)}${r.rank ? ` · 모멘텀 ${r.rank}/${r.total}위` : ''}${r.pick ? ' · 🏆추천' : ''}</span></div>
                 <span class="action">${ICON[r.action]} ${r.action}</span>
             </div>
             ${priceRow(r)}
             ${checksHtml(r)}
+            ${levelsHtml(r)}
             <details class="more"><summary>근거 자세히</summary><p class="summary">${escapeHtml(r.summary)}</p>
                 ${r.action !== '관망' ? `<p class="stop">🛡 손절 기준 <b>${fmtPrice(r.stopPrice, r.currency)}</b> (현재가 대비 ${fmtPct(r.stopPrice / r.price - 1, 0)})</p>` : ''}</details>
         `;
@@ -318,6 +396,71 @@ async function runBacktest() {
         btChart.innerHTML = `<div class="empty-state"><p>${escapeHtml(e.message)}</p></div>`;
     }
     backtestBtn.disabled = false;
+}
+
+// 신호 복기
+async function runReview() {
+    const windows = [5, 20];
+    const past = windows.map((w) => sessions.atLeastDaysAgo(Math.round(w * 1.4)));
+    const targets = [...new Set(past.filter(Boolean).flatMap((s) => s.signals.map((x) => x.symbol)))];
+    if (!targets.length) { reviewText.textContent = buildReviewText([]); return; }
+    $('review-btn').disabled = true;
+    reviewText.textContent = '현재가 조회 중…';
+    try {
+        const load = makeLoader('2y', targets.length + Object.keys(universe.indices).length);
+        const prices = {};
+        await mapLimit(targets, 6, async (sym) => { try { prices[sym] = (await load(sym)).closes.at(-1); } catch { /* 제외 */ } });
+        const indexPrices = {};
+        for (const [mk, sym] of Object.entries(universe.indices)) { try { indexPrices[mk] = (await load(sym)).closes.at(-1); } catch { /* 제외 */ } }
+        progressEl.textContent = '';
+        const used = new Set();
+        const reports = [];
+        const ws = [];
+        past.forEach((s, i) => { if (s && !used.has(s.date)) { used.add(s.date); reports.push(postmortem(s, prices, indexPrices)); ws.push(windows[i]); } });
+        reviewText.textContent = buildReviewText(reports, { windows: ws }) + (state.demo ? '\n\n(데모 시세 기준 채점이라 의미 없음)' : '');
+    } catch (e) {
+        reviewText.textContent = `복기 실패: ${e.message}`;
+    }
+    $('review-btn').disabled = false;
+}
+
+// 매매 기록 · 코칭
+function addTrade(e) {
+    e.preventDefault();
+    const f = new FormData(tradeForm);
+    const symbol = String(f.get('symbol')).trim().toUpperCase();
+    const known = [...universe.kr, ...universe.us, ...state.watchlist].find((u) => u.symbol === symbol);
+    const sig = sessions.latest()?.signals.find((s) => s.symbol === symbol);
+    try {
+        journal.add({
+            side: f.get('side'), symbol, name: known?.name ?? symbol, price: Number(f.get('price')),
+            qty: Number(f.get('qty')) || 1, stop: Number(f.get('stop')) || null, reason: String(f.get('reason')).trim(),
+            currency: sig?.currency ?? (symbol.match(/\.(KS|KQ)$/) ? 'KRW' : 'USD'), signal: sig?.action ?? null,
+        });
+        tradeForm.reset();
+        renderTrades();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+function renderTrades() {
+    const list = journal.list();
+    tradeList.innerHTML = list.length ? '' : '<span class="muted">기록 없음 — 매수할 때 산 이유 · 가격 · 손절가를 적어두면 코칭이 됩니다.</span>';
+    for (const t of list.slice(-10)) {
+        const row = document.createElement('div');
+        row.className = `trade-row ${t.side}`;
+        row.innerHTML = `<span>${t.date} <b>${t.side === 'buy' ? '매수' : '매도'}</b> ${escapeHtml(t.name)} ${fmtPrice(t.price, t.currency)} ×${t.qty}${t.stop ? ` · 손절 ${fmtPrice(t.stop, t.currency)}` : ' · <em>손절가 없음</em>'}${t.reason ? ` · ${escapeHtml(t.reason)}` : ''}</span><button title="삭제">&times;</button>`;
+        row.querySelector('button').addEventListener('click', () => { journal.remove(t.id); renderTrades(); });
+        tradeList.appendChild(row);
+    }
+}
+
+function runCoach() {
+    const latest = sessions.latest();
+    const signals = Object.fromEntries((latest?.signals ?? []).map((s) => [s.symbol, { action: s.action, regimeOk: latest.regimes?.[s.market]?.ok }]));
+    coachText.textContent = buildCoachText(coach(journal.list(), { signals, rules: { maxWeight: state.strategy.maxWeight } }));
+    coachText.classList.remove('hidden');
 }
 
 async function copyMessage() {

@@ -1,4 +1,4 @@
-import { sma, rsi, macd } from './indicators.js';
+import { sma, ema, rsi, macd } from './indicators.js';
 import { fmtPct } from './format.js';
 
 // 전략 v2: 듀얼 모멘텀 + 시장 국면 필터 + 위험조정 복합 모멘텀 + 변동성 비중 + 손절 규칙
@@ -20,6 +20,9 @@ export const DEFAULTS = {
   maxPerSector: 2,
   regimeWeight: 0.5,
   costBps: 10,
+  // 모닝 브리핑 방향 기준: 20EMA 위 · RSI 50 이상 · MACD 시그널 위 = 상승 (셋 다 반대면 하락, 섞이면 중립)
+  biasEma: 20,
+  biasRsi: 50,
 };
 
 export const ACTIONS = ['매수 관심', '매수 대기', '매도 검토', '보유', '관망'];
@@ -111,7 +114,35 @@ export function analyze(closes, opts = {}, { volumes } = {}) {
   const peak60 = Math.max(...closes.slice(-60));
   const stopPrice = Math.max(peak60 * (1 - stopPct), ma200 ?? 0);
 
+  // 7) 모닝 브리핑용 방향(bias) · 핵심 가격 · 볼 것
+  const ema20 = ema(closes, o.biasEma);
+  const votes = [ema20 != null ? price > ema20 : null, r != null ? r >= o.biasRsi : null, m ? m.macd > m.signal : null];
+  const ups = votes.filter((v) => v === true).length;
+  const downs = votes.filter((v) => v === false).length;
+  const bias = ups === 3 ? '상승' : downs === 3 ? '하락' : '중립';
+  const biasDetail = [
+    ema20 != null ? `${o.biasEma}EMA ${price > ema20 ? '위' : '아래'}` : null,
+    r != null ? `RSI ${r.toFixed(0)}` : null,
+    m ? `MACD ${m.macd > m.signal ? '위' : '아래'}` : null,
+  ].filter(Boolean).join(' · ');
+  const support = [{ label: `${o.biasEma}EMA`, price: ema20 }, { label: '200일선', price: ma200 }, { label: '손절 기준', price: stopPrice }]
+    .filter((l) => l.price != null && l.price < price).sort((a, b) => b.price - a.price);
+  const resistance = [{ label: '60일 고점', price: peak60 }, { label: '52주 고점', price: high52 }]
+    .filter((l) => l.price >= price).sort((a, b) => a.price - b.price)
+    .filter((l, i, arr) => i === 0 || Math.abs(l.price - arr[i - 1].price) > price * 1e-4);
+  const watchPoints = [];
+  if (r != null && r >= 70) watchPoints.push(`RSI ${r.toFixed(0)} 과열 — 추격 매수 주의`);
+  else if (r != null && r >= 65) watchPoints.push('RSI 70 과열 근접');
+  if (r != null && r <= 30) watchPoints.push(`RSI ${r.toFixed(0)} 과매도 — 반등 관찰`);
+  else if (r != null && r <= 35) watchPoints.push('RSI 30 과매도 근접');
+  if (m && m.hist * m.prevHist > 0 && Math.abs(m.hist) < Math.abs(m.prevHist) * 0.5) watchPoints.push('MACD 크로스 임박');
+  if (ma200 != null && Math.abs(price / ma200 - 1) < 0.03) watchPoints.push('200일선 테스트 중');
+  if (offHigh > -0.03 && offHigh < 0) watchPoints.push('52주 신고가 도전');
+  if (inMarket && price < stopPrice * 1.03) watchPoints.push('손절 기준 근접');
+  if (volRatio != null && volRatio >= 1.5) watchPoints.push('거래량 급증');
+
   return {
+    bias, biasDetail, ema20, support, resistance, watchPoints,
     price,
     changePct: prev ? ((price - prev) / prev) * 100 : 0,
     mom3, mom6, mom12, composite, riskAdj, vol, ma200, ma20, high52, offHigh,

@@ -50,6 +50,12 @@
                         <option value="watch">관심 종목만</option>
                     </select>
                 </label>
+                <label class="scope-row">메시지 형식
+                    <select id="msg-format">
+                        <option value="signal">신호 (추천 + 관심 종목)</option>
+                        <option value="brief">모닝 브리핑 (방향 · 핵심 가격 · 볼 것 · 어제와 비교)</option>
+                    </select>
+                </label>
                 <div class="btn-row">
                     <button id="analyze-btn" class="primary-btn">추천 종목 분석</button>
                     <button id="backtest-btn" class="primary-btn secondary">백테스트</button>
@@ -60,6 +66,8 @@
 
             <!-- 시장 국면 -->
             <div id="regime-bar" class="regime-bar hidden"></div>
+            <!-- 어제와 비교 -->
+            <div id="diff-bar" class="card diff-bar hidden"></div>
 
             <!-- 추천 -->
             <section class="result-section hidden" id="picks-section">
@@ -95,6 +103,36 @@
                 <table class="stats-table" id="bt-stats"></table>
                 <p class="muted" id="bt-last"></p>
                 <p class="hint">월 1회(21거래일) 리밸런싱, 추천 종목만 보유, 현금 수익 0, 편도 거래비용 0.1%. 균등 보유는 후보 전체를 같은 비중으로 계속 든 경우입니다. 과거 성과는 미래 수익을 보장하지 않습니다.</p>
+            </section>
+
+            <!-- 신호 복기 -->
+            <section class="card hidden" id="review-section">
+                <div class="section-head">
+                    <h2>🔍 신호 복기</h2>
+                    <button id="review-btn" class="small-btn">복기 실행</button>
+                </div>
+                <p class="hint">저장된 과거 세션(5일 · 20일 전)의 신호를 지금 가격으로 채점합니다. 맞음 · 틀림 · 놓침 · 시장과 엇갈림. 데모 시세에선 세션을 저장하지 않습니다.</p>
+                <pre id="review-text" class="plain-text"></pre>
+            </section>
+
+            <!-- 매매 기록 · 코칭 -->
+            <section class="card" id="journal-section">
+                <div class="section-head">
+                    <h2>📒 매매 기록 · 코칭</h2>
+                    <button id="coach-btn" class="small-btn">코칭 받기</button>
+                </div>
+                <form id="trade-form" class="trade-form">
+                    <select name="side"><option value="buy">매수</option><option value="sell">매도</option></select>
+                    <input name="symbol" placeholder="종목코드" required>
+                    <input name="price" type="number" step="any" placeholder="가격" required>
+                    <input name="qty" type="number" step="any" placeholder="수량">
+                    <input name="stop" type="number" step="any" placeholder="손절가">
+                    <input name="reason" placeholder="산 이유 (한 줄)">
+                    <button type="submit" class="small-btn">기록</button>
+                </form>
+                <div id="trade-list" class="trade-list"></div>
+                <pre id="coach-text" class="plain-text hidden"></pre>
+                <p class="hint">기록은 이 브라우저에만 저장됩니다. 코칭은 손절가 · 비중 · 신호 역행 · 약세장 매수 · 손절 미이행을 점검해 "다음 매매 규칙"을 제안합니다.</p>
             </section>
 
             <!-- 카톡 메시지 미리보기 -->

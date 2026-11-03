@@ -50,3 +50,8 @@ export function macd(values, fast = 12, slow = 26, signal = 9) {
     prevHist: line[n - 2] - sig[n - 2],
   };
 }
+
+export function ema(values, period) {
+  if (values.length < period) return null;
+  return emaSeries(values, period)[values.length - 1];
+}
