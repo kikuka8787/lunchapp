@@ -1,0 +1,9 @@
+{
+  "_note": "트레이딩뷰 MCP 잭슨을 이 프로젝트에서 쓰려면 이 파일을 .mcp.json 으로 복사하세요. 먼저 ~/tradingview-mcp-jackson 에 설치돼 있어야 합니다 (.claude/skills/trading-tools 참고). 윈도우는 args 를 C:\\\\Users\\\\이름\\\\tradingview-mcp-jackson\\\\src\\\\server.js 로.",
+  "mcpServers": {
+    "tradingview": {
+      "command": "node",
+      "args": ["${HOME}/tradingview-mcp-jackson/src/server.js"]
+    }
+  }
+}

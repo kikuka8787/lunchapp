@@ -15,12 +15,15 @@ fi
 echo "▶ 클로드 코드에 MCP 등록"
 claude mcp add --transport stdio --scope user tradingview -- node ~/tradingview-mcp-jackson/src/server.js || echo "  (이미 등록돼 있으면 무시)"
 
-echo "▶ ② 클로드 트레이딩 스킬 4개 설치"
+echo "▶ ② 클로드 트레이딩 스킬 설치 (추천 4개 + API 키 없이 시작하는 5개)"
 if [ ! -d ~/claude-trading-skills ]; then
   git clone https://github.com/tradermonty/claude-trading-skills.git ~/claude-trading-skills
 fi
 mkdir -p ~/.claude/skills
-(cd ~/claude-trading-skills/skills && cp -R technical-analyst trader-memory-core signal-postmortem trade-performance-coach ~/.claude/skills/)
+# 가이드 추천 4개 + API 키 없이 시작하는 5개(No API Key Starter Path)
+for sk in technical-analyst trader-memory-core signal-postmortem trade-performance-coach market-breadth-analyzer uptrend-analyzer position-sizer; do
+  if [ -d ~/claude-trading-skills/skills/$sk ]; then cp -R ~/claude-trading-skills/skills/$sk ~/.claude/skills/; echo "  + $sk"; else echo "  (없음: $sk — 저장소에서 이름이 바뀌었을 수 있음)"; fi
+done
 
 echo "▶ ③ TradingAgents (선택) — 멀티 에이전트 LLM 프레임워크. LLM 사용료가 들고 Python 3.11+ 가 필요합니다."
 if [ "${WITH_TRADINGAGENTS:-0}" = "1" ]; then

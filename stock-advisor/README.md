@@ -49,6 +49,16 @@ npm test
 무료이고 결정적이지만 뉴스·실적은 못 봅니다. 진짜 LLM 토론이 필요하면 본체를 쓰세요 — 설치·비용·면책 안내는 `.claude/skills/tradingagents/SKILL.md`(이 저장소를 Claude Code로 열고 "TradingAgents 설치 순서 알려줘").
 
 ### 가이드의 원래 도구를 Claude Code에서 쓰려면
+클로드 코드에 **한 문장만 붙여넣어도** 설치됩니다 (공식 README 문장, 2026-10-30 기준):
+
+- 트레이딩뷰 MCP 잭슨(모닝 브리핑 포함, 추천):
+  `Set up TradingView MCP Jackson for me. Clone https://github.com/LewisWJackson/tradingview-mcp-jackson.git to ~/tradingview-mcp-jackson, run npm install, then add it to my MCP config at ~/.claude/.mcp.json (merge with any existing servers, don't overwrite them). The config block is: { "mcpServers": { "tradingview": { "command": "node", "args": ["/Users/YOUR_USERNAME/tradingview-mcp-jackson/src/server.js"] } } } — replace YOUR_USERNAME with my actual username. Then copy rules.example.json to rules.json and open it so I can fill in my trading rules. Finally restart and verify with tv_health_check.`
+- 트레이딩뷰 MCP 원본: `Install the TradingView MCP server. Clone https://github.com/tradesdontlie/tradingview-mcp.git, run npm install, add it to my MCP config at ~/.claude/.mcp.json, and launch TradingView with the debug port. Then verify the connection with tv_health_check.`
+- 트레이딩 스킬 중 **유료 데이터 API 없이 시작하는 5개**: `market-breadth-analyzer` · `uptrend-analyzer` · `position-sizer` · `trader-memory-core`(매매 일지) · `signal-postmortem`(복기). 클로드 웹에서는 저장소 Releases의 `.skill` 파일을 올리면 됩니다.
+- 그다음: "Run morning_brief and give me my session bias" → 마음에 들면 "save this brief" → 다음 날 "어제 세션 가져와서 비교해줘". 매매할 때마다 "이번 매매 일지에 남겨줘", 끝나면 "이 매매 복기해줘", 쌓이면 "반복되는 실수 찾아줘".
+
+전체 안내(설정 블록, rules.json 칸, 말하는 법, 문제 해결)는 저장소 루트의 `.claude/skills/trading-tools/SKILL.md`에 있고, 이 저장소를 Claude Code로 열면 "트레이딩뷰 MCP 설치해줘"에 그 내용으로 답합니다. 프로젝트용 MCP 설정 예시는 루트 `.mcp.json.example`.
+
 `scripts/setup-claude-trading-tools.sh`에 가이드(2026-10-30 기준)의 설치 명령을 그대로 모았습니다 — 트레이딩뷰 MCP 잭슨 설치·`claude mcp add` 등록·트레이딩 스킬 4개 복사. 본인 컴퓨터에서 실행하고, 트레이딩뷰를 연결 모드(포트 9222)로 켠 뒤 "tv_health_check로 확인해줘"로 시작하세요. 트레이딩뷰 공식 도구가 아니라 업데이트로 멈출 수 있고, 자동매매·재배포는 금지입니다.
 
 ### 개장 알림 (한국장 09:00 KST, 미국장 09:30 ET)
