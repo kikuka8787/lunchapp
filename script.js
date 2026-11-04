@@ -1,5 +1,7 @@
-const API_KEY = 'b337fff3f7a344579f45e8a21409f58f';
 const BASE_URL = 'https://open.neis.go.kr/hub';
+// 나이스 인증키는 설정(⚙️)에서 입력해 이 브라우저에만 저장한다. 비우면 키 없이 호출(나이스 샘플 한도 적용).
+const getApiKey = () => localStorage.getItem('neisApiKey') || '';
+const keyParam = () => (getApiKey() ? `KEY=${encodeURIComponent(getApiKey())}&` : '');
 
 // 알러지 정보 매핑
 const ALLERGY_MAP = {
@@ -33,10 +35,12 @@ const settingsSidebar = document.getElementById('settings-sidebar');
 const closeSettingsBtn = document.getElementById('close-settings');
 const overlay = document.getElementById('overlay');
 const allergyOptions = document.getElementById('allergy-options');
+const apiKeyInput = document.getElementById('api-key');
 const saveSettingsBtn = document.getElementById('save-settings');
 
 // 초기화
 function init() {
+    apiKeyInput.value = getApiKey();
     renderAllergyOptions();
     updateDateDisplay();
     
@@ -72,7 +76,7 @@ async function searchSchool() {
     if (!query) return;
 
     try {
-        const response = await fetch(`${BASE_URL}/schoolInfo?KEY=${API_KEY}&Type=json&SCHUL_NM=${encodeURIComponent(query)}`);
+        const response = await fetch(`${BASE_URL}/schoolInfo?${keyParam()}Type=json&SCHUL_NM=${encodeURIComponent(query)}`);
         const data = await response.json();
 
         if (data.schoolInfo) {
@@ -154,7 +158,7 @@ async function fetchMeals() {
     mealContainer.innerHTML = '<div class="loader"></div>';
 
     try {
-        const response = await fetch(`${BASE_URL}/mealServiceDietInfo?KEY=${API_KEY}&Type=json&ATPT_OFCDC_SC_CODE=${state.school.officeCode}&SD_SCHUL_CODE=${state.school.schoolCode}&MLSV_YMD=${ymd}`);
+        const response = await fetch(`${BASE_URL}/mealServiceDietInfo?${keyParam()}Type=json&ATPT_OFCDC_SC_CODE=${state.school.officeCode}&SD_SCHUL_CODE=${state.school.schoolCode}&MLSV_YMD=${ymd}`);
         const data = await response.json();
 
         if (data.mealServiceDietInfo) {
@@ -236,6 +240,7 @@ function closeSidebar() {
 }
 
 function saveAllergies() {
+    localStorage.setItem('neisApiKey', apiKeyInput.value.trim());
     const checkboxes = allergyOptions.querySelectorAll('input:checked');
     state.allergies = Array.from(checkboxes).map(cb => parseInt(cb.value));
     localStorage.setItem('userAllergies', JSON.stringify(state.allergies));
