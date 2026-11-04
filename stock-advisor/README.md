@@ -144,6 +144,9 @@ CLI는 MCP 클라이언트로 PlayMCP 서버에 접속해 "나와의 채팅방" 
 개발 환경에서 PlayMCP/Yahoo에 접속할 수 없어 **실제 연동과 실제 시세 조회는 테스트하지 못했습니다**
 (단위 테스트, `--demo`, 웹 앱 데모 모드만 검증). 특히 직접 만든 앱용 **토큰 발급 방식**은 공식 문서로 확인하지 못했습니다.
 
+## 문서
+- `docs/주식-스킬-정리.md` — 요구사항별로 무엇이 어디에 들어갔는지, 명령, 전략 근거, 하루 루틴, 남은 일 정리
+
 ## 구조
 - `web/` 브라우저 앱 (index.html, app.js, chart.js, style.css) · `src/serve.js` 정적 서버 + 시세 프록시
 - `src/data.js` 시세 조회 · `src/indicators.js` 지표 · `src/strategy.js` 전략(분석·순위·근거) · `src/screener.js` 유니버스 스크리닝 · `src/backtest.js` 백테스트
